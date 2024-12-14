@@ -85,8 +85,8 @@ evaluator = Evaluator(args)
 
 # Read problem metadata
 dim: int = evaluator.n_dim
-xl: np.ndarray = evaluator.xl.tolist() 
-xu: np.ndarray = evaluator.xu.tolist()
+xl: np.ndarray = evaluator.xl
+xu: np.ndarray = evaluator.xu
 assert len(xl) == len(xu) == dim
 
 # Hpwl evaluation API
