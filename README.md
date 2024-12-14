@@ -51,7 +51,64 @@ docker tag <IMAGE ID> <Your Name>/bboplace-bench:latest
 docker run --gpus all -it -v $(pwd):/workspace <Your Name>/bboplace-bench:latest bash
 ```
 
-### Parameters
+### Usage Demo and Evaluation APIs (for BBO Users)
+We provide a simple demo of how to benchmark BBO algorithms (e.g., CMA-ES) on our proposed BBOPlace-Bench in `demo/demo_cmaes.py`. 
+Specifically, we implement a BBO user-friendly evaluator interface in `src/evaluator.py`, and you can instantiate it for fitness evaluation as
+```python
+# Set base_path environment variable
+import os, sys
+base_path = os.path.abspath(".") # Alternative: base_path should be where BBOPlace-Bench is located
+sys.path.append(base_path)
+
+# Set path environment variable
+from config.benchmark import ROOT_DIR, BENCHMARK_DIR
+THIRDPARTY_DIR = os.path.join(ROOT_DIR, "thirdparty")
+SOURCE_DIR = os.path.join(ROOT_DIR, "src")
+sys.path.append(ROOT_DIR)
+sys.path.append(THIRDPARTY_DIR)
+sys.path.append(SOURCE_DIR)
+sys.path.append(BENCHMARK_DIR)
+os.environ["PYTHONPATH"] = ":".join(sys.path) # for Ray
+
+import numpy as np 
+from types import SimpleNamespace
+from src.evaluator import Evaluator
+
+args = NameSpace(
+    "placer": "grid_guide", # GG in our paper
+    "benchmark": "adaptec1", # choose which placement benchmark
+    "eval_gp_hpwl": False, # if evaluate to hpwl of global placenment
+)
+
+# Instantiate the evaluator
+evaluator = Evaluator(args)
+
+# Read problem metadata
+dim: int = evaluator.n_dim
+xl: np.ndarray = evaluator.xl.tolist() 
+xuL np.ndarray = evaluator.xu.tolist()
+assert len(xl) == len(xu) == dim
+
+# Hpwl evaluation API
+batch_size = 128
+x = np.random.uniform(low=xl, high=xu, size=(batch_size, dim))
+hpwl = evaluator.evaluate(x)
+print(np.max(hpwl), np.min(hpwl), np.mean(hpwl))
+```
+where choices for `placer` are `grid_guide`, `sp`, `dmp`, which refer to GG, SP, HPO formulations in our paper, respectively. The choices for `benchmark` are 
+```python
+benchmarks = ["adaptec1", "adaptec2", "adaptec3", "adaptec4", "bigblue1", "bigblue3",   # ISPD 2005
+              "superblue1", "superblue3", "superblue4", "superblue5",
+              "superblue7", "superblue10", "superblue16", "superblue18"]   # ICCAD 2015
+```
+
+### Search Space Statement
+
+For GG and HPO formulation, we formulate them as continuous BBO problems. For SP formulation, it is a permutation-based BBO problem.
+
+## Reproduce Paper Results
+
+### Parameters Settings
 Before running an experiment, you can modify the hyper-parameters of different problem formulations and algorithms in `config` directory. For example, modifying `n_population : 50` in `config/algorithm/ea.yaml` to change the population size of EA.
 If you want to use wandb to store experimental data, please first enter the wandb API key in `config/default.yaml` and set `use_wandb` to `True`. For offline use, set `wandb_offline` to `True`.
 ```yaml
@@ -61,9 +118,11 @@ wandb_offline : True
 wandb_api : <Your API KEY>
 ```
 
-### Run an experiment
+Note that ``n_cpu_max`` should be set as 1 if you are evaluating with ``dmp`` placer or evaluating global placement hpwl. 
 
-Navigate to the `script` directory.
+### Quick Run
+
+Run each ``.sh`` file in the `script` directory.
 ```shell
 cd script
 ```
