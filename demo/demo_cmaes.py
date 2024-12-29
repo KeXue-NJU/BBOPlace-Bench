@@ -1,11 +1,19 @@
-import os, sys
+import os
+import sys
+import argparse
+import random
+
+import numpy as np
+import cma
+
+from src.evaluator import Evaluator
+from config.benchmark import ROOT_DIR, BENCHMARK_DIR
+
+# Set path environment variable
 base_path = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), "..")
 sys.path.append(base_path)
 
-from config.benchmark import (
-    ROOT_DIR, BENCHMARK_DIR
-)
 THIRDPARTY_DIR = os.path.join(ROOT_DIR, "thirdparty")
 SOURCE_DIR = os.path.join(ROOT_DIR, "src")
 sys.path.append(ROOT_DIR)
@@ -14,13 +22,7 @@ sys.path.append(SOURCE_DIR)
 sys.path.append(BENCHMARK_DIR)
 os.environ["PYTHONPATH"] = ":".join(sys.path)
 
-import cma 
-import random 
-import numpy as np 
-
-from src.evaluator import Evaluator
-
-import argparse 
+# Set arguments
 parser = argparse.ArgumentParser() 
 parser.add_argument("--sigma", type=float, default=0.5)
 parser.add_argument("--pop_size", type=int, default=20)
@@ -34,12 +36,12 @@ args = parser.parse_args()
 np.random.seed(args.seed)
 random.seed(args.seed)
 
+# Instantiate the evaluator
 evaluator = Evaluator(args)
 dim = evaluator.n_dim
 xl = evaluator.xl.tolist() 
 xu = evaluator.xu.tolist()
 assert len(xl) == len(xu) == dim
-
 x0 = np.random.uniform(low=xl, high=xu, size=dim)
 
 # Initialize CMA-ES
