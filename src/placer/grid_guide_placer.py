@@ -27,9 +27,11 @@ class GridGuidePlacer(BasicPlacer):
             size_y = self.placedb.node_info[macro]["size_y"]
             scaled_size_x = math.ceil(size_x / self.grid_width)
             scaled_size_y = math.ceil(size_y / self.grid_height)
-            self.scale_size[macro] = {}
-            self.scale_size[macro]["size_x"] = scaled_size_x
-            self.scale_size[macro]["size_y"] = scaled_size_y
+            self.scale_size[macro] = {
+                "size_x": scaled_size_x,
+                "size_y": scaled_size_y
+            }
+
     
     def _genotype2phenotype(self, x):
         # get x_id, y_id for all macro based on genotype x
