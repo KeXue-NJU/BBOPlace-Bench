@@ -24,3 +24,5 @@ dockercreate.sh
 **.png
 /wandb
 benchmarks_bk
+benchmarks
+new_script

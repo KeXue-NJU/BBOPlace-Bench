@@ -6,7 +6,7 @@ import torch as th
 
 from utils.read_benchmark.read_aux import write_pl
 from utils.read_benchmark.read_def import write_def
-from utils.abort_signal import abort_signal_handler
+from utils.signal_handler import abort_signal_handler
 from utils.debug import *
 from utils.constant import INF
 

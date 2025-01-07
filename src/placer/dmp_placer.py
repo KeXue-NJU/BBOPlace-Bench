@@ -9,8 +9,9 @@ import numpy as np
 import math
 import os
 import signal
+import time
 
-from utils.abort_signal import abort_signal_handler
+from utils.signal_handler import abort_signal_handler, timeout_handler, AbortSignalException
 from utils.debug import *
 
 Numeric = Union[int, float]
@@ -28,13 +29,29 @@ params_space = {
 ###################################################################################
 
 # categorical
-    "GP_num_bins_x": (0, 2, sel_func([1024, 2048])),
-    "GP_num_bins_y": (0, 2, sel_func([1024, 2048])),
+    # "GP_num_bins_x": (0, 2, sel_func([1024, 2048])),
+    # "GP_num_bins_y": (0, 2, sel_func([1024, 2048])),
+    # "GP_optimizer": (0, 2, sel_func(["adam", "nesterov"])),
+    # "GP_wirelength": (0, 2, sel_func(["weighted_average", "logsumexp"])),
+    # "GP_iteration": (0, 1, sel_func([1000])),
+    "GP_num_bins_x": (0, 4, sel_func([256, 512, 1024, 2048])),
+    "GP_num_bins_y": (0, 4, sel_func([256, 512, 1024, 2048])),
     "GP_optimizer": (0, 2, sel_func(["adam", "nesterov"])),
     "GP_wirelength": (0, 2, sel_func(["weighted_average", "logsumexp"])),
-    "GP_iteration": (0, 1, sel_func([1000])),
+    "GP_iteration": (0, 1, sel_func([9999])),
 
 # uniform
+    # "GP_Llambda_density_weight_iteration": (1, 3, round_func),
+    # "GP_Lsub_iteration": (1, 3, round_func),
+    # "GP_learning_rate": (0.001, 0.01, orig_func),
+    # "GP_learning_rate_decay": (0.99, 1.0, orig_func),
+    # "RePlAce_LOWER_PCOF": (0.9, 0.99, orig_func),
+    # "RePlAce_UPPER_PCOF": (1.02, 1.15, orig_func),
+    # "RePlAce_ref_hpwl": (150000, 550000, round_func),
+    # "density_weight": (1e-06, 1e-04, orig_func),
+    # "gamma": (1, 4, orig_func),
+    # "stop_overflow": (0.06, 0.1, orig_func),
+    # "target_density": (0.8, 1.2, orig_func),
     "GP_Llambda_density_weight_iteration": (1, 3, round_func),
     "GP_Lsub_iteration": (1, 3, round_func),
     "GP_learning_rate": (0.001, 0.01, orig_func),
@@ -42,10 +59,11 @@ params_space = {
     "RePlAce_LOWER_PCOF": (0.9, 0.99, orig_func),
     "RePlAce_UPPER_PCOF": (1.02, 1.15, orig_func),
     "RePlAce_ref_hpwl": (150000, 550000, round_func),
-    "density_weight": (1e-06, 1e-04, orig_func),
-    "gamma": (1, 4, orig_func),
+    "density_weight": (1e-06, 1.0, orig_func),
+    "gamma": (0.1, 4, orig_func),
     "stop_overflow": (0.06, 0.1, orig_func),
-    "target_density": (0.8, 1.2, orig_func),
+    "target_density": (0.5, 1.0, orig_func),
+
 }
 
 class DMPPlacer(BasicPlacer):
@@ -247,6 +265,9 @@ class DMPPlacer(BasicPlacer):
         self._load_genotype(x)
 
         original_abort_signal_handler = signal.signal(signal.SIGABRT, abort_signal_handler)
+        original_timeout_handler      = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(600) # maximum execution time
+        t_start = time.time()
         try:
             with th.no_grad():
                 self.dmp_plcr.pos[0].data.copy_(
@@ -262,10 +283,14 @@ class DMPPlacer(BasicPlacer):
             return macro_pos
         except KeyboardInterrupt:
             exit(0)
-        except:
+        except AbortSignalException:
+            return {}
+        except TimeoutError:
             return {}
         finally:
+            signal.alarm(0)
             signal.signal(signal.SIGABRT, original_abort_signal_handler)
+            signal.signal(signal.SIGALRM, original_timeout_handler)
 
 
     def __deepcopy__(self, memo=None):
