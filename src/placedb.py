@@ -52,6 +52,12 @@ class PlaceDB:
         self.canvas_height = self.canvas_uy - self.canvas_ly
         self.macro_lst = list(self.node_info.keys())
 
+        self.macro_area_sum = 0
+        for macro in self.node_info:
+            size_x = self.node_info[macro]["size_x"]
+            size_y = self.node_info[macro]["size_y"]
+            self.macro_area_sum += size_x * size_y
+
 
     def to_pl(self, macro_pos=None, fix_macro=True) -> str:
         if macro_pos is None:

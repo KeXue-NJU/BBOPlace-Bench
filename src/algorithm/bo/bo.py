@@ -161,8 +161,8 @@ class BO(BasicAlgo):
                .do(self.problem, n_samples).get("X")
         x = torch.from_numpy(x_np).to(**tkwargs)
 
-        hpwl, macro_pos_all = self._get_observations(x, return_macro_pos=True)
-        self._record_results(hpwl, macro_pos_all)
+        hpwl, overlap_rate, macro_pos_all = self._get_observations(x, return_macro_pos=True)
+        self._record_results(hpwl, overlap_rate, macro_pos_all)
         
         if isinstance(hpwl, (np.ndarray, list)):
             hpwl = torch.Tensor(hpwl).to(**tkwargs)
@@ -211,6 +211,7 @@ class BO(BasicAlgo):
                 x = x.detach().cpu().numpy()
         
         y = []
+        overlap_rate = []
         macro_pos_all = []
         
         if ray.available_resources().get("CPU", 0) > 1:
@@ -219,11 +220,12 @@ class BO(BasicAlgo):
         else:
             results = [self.placer.evaluate(x0) for x0 in x]
         
-        for hpwl, macro_pos in results:
+        for hpwl, o_r, macro_pos in results:
             y.append(hpwl)
+            overlap_rate.append(o_r)
             macro_pos_all.append(macro_pos)
         
-        return np.array(y), (macro_pos_all if return_macro_pos else None)
+        return np.array(y), np.array(overlap_rate), (macro_pos_all if return_macro_pos else None)
         
     def _optimize_acqf_and_get_observations(self, acqf, num_samples=1):
         if self.placer_type == "grid_guide":
@@ -286,7 +288,7 @@ class BO(BasicAlgo):
             indices = np.random.choice(proposed_X.shape[0], num_samples, replace=False)
             proposed_X = proposed_X[indices, :]
         
-        hpwl, macro_pos_all = self._get_observations(proposed_X, return_macro_pos=True)
+        hpwl, overlap_rate, macro_pos_all = self._get_observations(proposed_X, return_macro_pos=True)
         
         t_temp = time.time() 
         t_eval = t_temp - self.t 
@@ -295,7 +297,9 @@ class BO(BasicAlgo):
         avg_t_each_eval = self.t_total / (self.n_eval + self.n_init)
         self.t = t_temp
         
-        self._record_results(hpwl, macro_pos_all,
+        self._record_results(hpwl=hpwl, 
+                             overlap_rate=overlap_rate,
+                             macro_pos_all=macro_pos_all,
                              t_each_eval=t_each_eval,
                              avg_t_each_eval=avg_t_each_eval)
         
