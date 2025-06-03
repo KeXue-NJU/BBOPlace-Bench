@@ -8,32 +8,21 @@ This repository contains the Python code for BBOPlace-Bench, a benchmarking cont
 > **Important Reminder:**
 >
 > If you find it difficult to install DREAMPlace, we have a basic version available that works out of the box without DREAMPlace. Check it out at: [BBOPlace-miniBench](https://github.com/lamda-bbo/BBOPlace-miniBench)
-### Option 1: Using pip
-```bash
-# Create a virtual environment (recommended)
-python -m venv bboplace-env
-source bboplace-env/bin/activate
 
-# Install requirements
-pip install -r requirements.txt
+### Compile DREAMPlace
+Please first install docker and [docker cuda toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). Then, please download the docker image from [Baidu Netdisk](https://pan.baidu.com/s/1_0-ZDNUAKdqwyIQWXWdoUQ?pwd=3bef) or [DREAMPlace](<https://github.com/limbo018/DREAMPlace>), and compile `thirdparty/DREAMPlace_source` in the docker container following the below commands:
+```
+cd DREAMPlace_source
+mkdir build
+cd build
+cmake .. 
+make
+make install
+cd ../..
+cp -r DREAMPlace_source/install/dreamplace dreamplace
 ```
 
-### Option 2: Using Docker
-Please first install docker and [docker cuda toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
-
-```bash
-# Load our docker image
-docker load --input bboplace-bench.tar
-
-# Find our docker image and rename it
-docker images
-docker tag <IMAGE ID> <Your Name>/bboplace-bench:latest
-
-# Run a docker container
-docker run --gpus all -it -v $(pwd):/workspace <Your Name>/bboplace-bench:latest bash
-```
-
-
+After that, please install the required packages according to `requirements.txt`. Docker container is not required for code running.
 
 
 ## File Structure

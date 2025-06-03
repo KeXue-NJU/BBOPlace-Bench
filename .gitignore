@@ -24,5 +24,6 @@ dockercreate.sh
 **.png
 /wandb
 benchmarks_bk
-benchmarks
+/benchmarks
 new_script
+/thirdparty/dreamplace

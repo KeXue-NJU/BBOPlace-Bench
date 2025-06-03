@@ -42,7 +42,7 @@ def process_benchmark_path(benchmark):
             is_benchmark_registered = True
             break
     if not is_benchmark_registered:
-        assert0("benchmark was not registered in config/benchmark.py")
+        assert0(f"benchmark {benchmark} was not registered in config/benchmark.py")
 
     benchmark_path = os.path.join(BENCHMARK_DIR, benchmark_base, benchmark)
     benchmark_type = benchmark_type_dict[benchmark_base]
