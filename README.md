@@ -12,7 +12,7 @@ This repository contains the Python code for BBOPlace-Bench, a benchmarking cont
 ### Compile DREAMPlace
 Please first install docker and [docker cuda toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). Then, please download the docker image from [Baidu Netdisk](https://pan.baidu.com/s/1_0-ZDNUAKdqwyIQWXWdoUQ?pwd=3bef) or [DREAMPlace](<https://github.com/limbo018/DREAMPlace>), and compile `thirdparty/DREAMPlace_source` in the docker container following the below commands:
 ```
-cd DREAMPlace_source
+cd thirdparty/DREAMPlace_source
 mkdir build
 cd build
 cmake .. 
