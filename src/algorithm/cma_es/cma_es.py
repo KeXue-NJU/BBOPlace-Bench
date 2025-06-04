@@ -86,6 +86,7 @@ class CMAES(BasicAlgo):
         while self.n_eval < self.args.max_evals:
             population = self.cmaes.ask()
             fitness = [] 
+            overlap_rate = []
             macro_pos_all = []
             
             if self.args.placer == "grid_guide":
@@ -101,8 +102,9 @@ class CMAES(BasicAlgo):
             else:
                 results = [self.placer.evaluate(x0) for x0 in processed_population]
             
-            for hpwl, macro_pos in results:
+            for hpwl, o_r, macro_pos in results:
                 fitness.append(hpwl)
+                overlap_rate.append(o_r)
                 macro_pos_all.append(macro_pos)
                 
             t_temp = time.time() 
@@ -112,7 +114,7 @@ class CMAES(BasicAlgo):
             avg_t_each_eval = self.t_total / (self.n_eval + self.args.pop_size)
             self.t = t_temp
             
-            self._record_results(np.array(fitness), macro_pos_all,
+            self._record_results(np.array(fitness), np.array(overlap_rate), macro_pos_all,
                                 t_each_eval=t_each_eval,
                                 avg_t_each_eval=avg_t_each_eval)
             

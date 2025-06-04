@@ -4,6 +4,7 @@ benchmark_prefix=superblue
 
 for i in 1 3 4 5 7 10 16 18
 do
+benchmark=${benchmark_prefix}${i}
 python ../src/main.py \
     --name=ICCAD2015_HPO_BO_GP \
     --benchmark=${benchmark} \

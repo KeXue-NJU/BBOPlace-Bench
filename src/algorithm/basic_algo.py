@@ -29,7 +29,7 @@ class BasicAlgo:
     def run(self):
         pass
 
-    def _record_results(self, hpwl, macro_pos_all, t_each_eval=0, avg_t_each_eval=0):
+    def _record_results(self, hpwl, overlap_rate, macro_pos_all, t_each_eval=0, avg_t_each_eval=0):
         if isinstance(hpwl, torch.Tensor):
             hpwl = hpwl.detach().cpu().numpy()
         hpwl = hpwl.flatten()
@@ -39,11 +39,11 @@ class BasicAlgo:
         pop_std_hpwl = np.std(hpwl)
 
 
-        for h, m_pos in zip(hpwl, macro_pos_all):
+        for h, o_r, m_pos in zip(hpwl, overlap_rate, macro_pos_all):
             self.n_eval += 1
             if h < self.best_hpwl:
                 self.best_hpwl = h
-                logging.info(f"n_eval: {self.n_eval}\tbest_hpwl: {self.best_hpwl}")
+                logging.info(f"n_eval: {self.n_eval}\tbest_hpwl: {self.best_hpwl}\toverlap rate: {o_r}")
                 self.placer.save_placement(
                     macro_pos=m_pos,
                     n_eval=self.n_eval,
@@ -59,6 +59,7 @@ class BasicAlgo:
             self.logger.add("HPWL/pop_best", pop_best_hpwl)
             self.logger.add("HPWL/pop_avg", pop_avg_hpwl)
             self.logger.add("HPWL/pop_std", pop_std_hpwl)
+            self.logger.add("overlap_rate", o_r)
             self.logger.add("Time/each_eval", t_each_eval)
             self.logger.add("Time/avg_each_eval", avg_t_each_eval)
             self.logger.step()
@@ -69,6 +70,7 @@ class BasicAlgo:
                 pop_best_hpwl=pop_best_hpwl,
                 pop_avg_hpwl=pop_avg_hpwl,
                 pop_std_hpwl=pop_std_hpwl,
+                overlap_rate=o_r,
                 t_each_eval=t_each_eval,
                 avg_t_each_eval=avg_t_each_eval
             )
@@ -93,7 +95,7 @@ class BasicAlgo:
 
         
     def _load_checkpoint(self):
-        if hasattr(self.args, "checkpoint") and os.path.exists(self.args.checkpoint):
+        if hasattr(self.args, "checkpoint") and os.paQth.exists(self.args.checkpoint):
             logging.info(f"Loading checkpoint from {self.args.checkpoint}")
             log_file = os.path.join(self.args.checkpoint, "log.pkl")
             with open(log_file, 'rb') as log_f:
@@ -103,6 +105,7 @@ class BasicAlgo:
             assert self.n_eval == len(log_data["HPWL/pop_best"]) 
             assert self.n_eval == len(log_data["HPWL/pop_avg"]) 
             assert self.n_eval == len(log_data["HPWL/pop_std"]) 
+            assert self.n_eval == len(log_data["overlap_rate"])
             assert self.n_eval == len(log_data["Time/each_eval"]) 
             assert self.n_eval == len(log_data["Time/avg_each_eval"]) 
             
@@ -113,6 +116,7 @@ class BasicAlgo:
                 self.logger.add("HPWL/pop_best", log_data["HPWL/pop_best"][i_eval])
                 self.logger.add("HPWL/pop_avg", log_data["HPWL/pop_avg"][i_eval])
                 self.logger.add("HPWL/pop_std", log_data["HPWL/pop_std"][i_eval])
+                self.logger.add("overlap_rate", log_data["overlap_rate"][i_eval])
                 self.logger.add("Time/each_eval", log_data["Time/each_eval"][i_eval])
                 self.logger.add("Time/avg_each_eval", log_data["Time/avg_each_eval"][i_eval])
                 self.logger.step()
@@ -123,6 +127,7 @@ class BasicAlgo:
                     pop_best_hpwl=log_data["HPWL/pop_best"][i_eval],
                     pop_avg_hpwl=log_data["HPWL/pop_avg"][i_eval],
                     pop_std_hpwl=log_data["HPWL/pop_std"][i_eval],
+                    overlap_rate=log_data["overlap_rate"][i_eval],
                     t_each_eval=log_data["Time/each_eval"][i_eval],
                     avg_t_each_eval=log_data["Time/avg_each_eval"][i_eval]
                 )

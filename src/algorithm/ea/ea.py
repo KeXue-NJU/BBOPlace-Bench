@@ -83,13 +83,15 @@ class EA(BasicAlgo):
         self.t = t_temp
 
         macro_pos_all = algo.pop.get("macro_pos")
+        overlap_rate = algo.pop.get("overlap_rate")
         hpwl = algo.pop.get("F").flatten()
 
         if not self.start_from_checkpoint:
             self._record_results(hpwl=hpwl, 
-                                macro_pos_all=macro_pos_all,
-                                t_each_eval=t_each_eval, 
-                                avg_t_each_eval=avg_t_each_eval)
+                                 overlap_rate=overlap_rate,
+                                 macro_pos_all=macro_pos_all,
+                                 t_each_eval=t_each_eval, 
+                                 avg_t_each_eval=avg_t_each_eval)
         else:
             self.start_from_checkpoint = False
 

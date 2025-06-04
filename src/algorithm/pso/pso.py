@@ -31,22 +31,23 @@ class Wrapped_PYPSO(PYPSO):
         x = OPS_REGISTRY["sampling"][self.args.placer]["random"](self.args, self.placer) \
             .do(self.origin_problem, self.n_individuals).get("X").astype(np.float64)
         y = np.empty((self.n_individuals,))  # fitness
+        overlap_rate = np.zeros((self.n_individuals, ))
         p_x, p_y = np.copy(x), np.copy(y)  # personally previous-best positions and fitness
         n_x = np.copy(x)  # neighborly previous-best positions
         for i in range(self.n_individuals):
             if self._check_terminations():
                 return v, x, y, p_x, p_y, n_x
-            y[i], macro_pos = self._evaluate_fitness(x[i], args)
+            y[i], overlap_rate[i], macro_pos = self._evaluate_fitness(x[i], args)
             macro_pos_lst.append(macro_pos)
         p_y = np.copy(y)
-        return v, x, y, p_x, p_y, n_x, macro_pos_lst
+        return v, x, y, p_x, p_y, n_x, overlap_rate, macro_pos_lst
     
     def _evaluate_fitness(self, x, args=None):
         self.start_function_evaluations = time.time()
         if args is None:
-            y, macro_pos = self.fitness_function(x)
+            y, overlap_rate, macro_pos = self.fitness_function(x)
         else:
-            y, macro_pos = self.fitness_function(x, args=args)
+            y, overlap_rate, macro_pos = self.fitness_function(x, args=args)
 
         self.time_function_evaluations += time.time() - self.start_function_evaluations
         self.n_function_evaluations += 1
@@ -58,10 +59,11 @@ class Wrapped_PYPSO(PYPSO):
             self._counter_early_stopping += 1
         else:
             self._counter_early_stopping, self._base_early_stopping = 0, y
-        return float(y), macro_pos
+        return float(y), float(overlap_rate), macro_pos
     
     def iterate(self, v=None, x=None, y=None, p_x=None, p_y=None, n_x=None, args=None):
         macro_pos_lst = []
+        overlap_rate = np.zeros((self.n_individuals, ))
         for i in range(self.n_individuals):
             if self._check_terminations():
                 return v, x, y, p_x, p_y, n_x, macro_pos_lst
@@ -75,12 +77,12 @@ class Wrapped_PYPSO(PYPSO):
             x[i] += v[i]  # position update
             if self.is_bound:
                 x[i] = np.clip(x[i], self.lower_boundary, self.upper_boundary)
-            y[i], macro_pos = self._evaluate_fitness(x[i], args)  # fitness evaluation
+            y[i], overlap_rate[i], macro_pos = self._evaluate_fitness(x[i], args)  # fitness evaluation
             macro_pos_lst.append(macro_pos)
             if y[i] < p_y[i]:  # online update
                 p_x[i], p_y[i] = x[i], y[i]
         self._n_generations += 1
-        return v, x, y, p_x, p_y, n_x, macro_pos_lst
+        return v, x, y, p_x, p_y, n_x, overlap_rate, macro_pos_lst
 
     
 class PSO(BasicAlgo):
@@ -136,9 +138,10 @@ class PSO(BasicAlgo):
             n_x = checkpoint["n_x"]
             self.pso.n_function_evaluations = self.n_eval - \
                 ((self.args.n_sampling_repeat - 1) * self.args.n_population)
+            overlap_rate = None
             macro_pos_lst = None
         else:
-            v, x, y, p_x, p_y, n_x, macro_pos_lst = self.pso.initialize(args=None)
+            v, x, y, p_x, p_y, n_x, overlap_rate, macro_pos_lst = self.pso.initialize(args=None)
         self._save_callback(
             v=v,
             x=x,
@@ -146,11 +149,12 @@ class PSO(BasicAlgo):
             p_x=p_x,
             p_y=p_y,
             n_x=n_x,
+            overlap_rate=overlap_rate,
             macro_pos_all=macro_pos_lst
         )
         while not self.pso.termination_signal:
             self.pso._print_verbose_info(fitness, y)
-            v, x, y, p_x, p_y, n_x, macro_pos_lst = self.pso.iterate(v, x, y, p_x, p_y, n_x, args=None)
+            v, x, y, p_x, p_y, n_x, overlap_rate, macro_pos_lst = self.pso.iterate(v, x, y, p_x, p_y, n_x, args=None)
             self._save_callback(
                 v=v,
                 x=x,
@@ -158,11 +162,12 @@ class PSO(BasicAlgo):
                 p_x=p_x,
                 p_y=p_y,
                 n_x=n_x,
+                overlap_rate=overlap_rate,
                 macro_pos_all=macro_pos_lst
             )
         return self.pso._collect(fitness, y)
     
-    def _save_callback(self, v, x, y, p_x, p_y, n_x, macro_pos_all):
+    def _save_callback(self, v, x, y, p_x, p_y, n_x, overlap_rate, macro_pos_all):
         # compute time
         t_temp = time.time()
         t_eval = t_temp - self.t
@@ -174,9 +179,10 @@ class PSO(BasicAlgo):
 
         if not self.start_from_checkpoint:
             self._record_results(hpwl=y, 
-                                macro_pos_all=macro_pos_all,
-                                t_each_eval=t_each_eval, 
-                                avg_t_each_eval=avg_t_each_eval)
+                                 overlap_rate=overlap_rate,
+                                 macro_pos_all=macro_pos_all,
+                                 t_each_eval=t_each_eval, 
+                                 avg_t_each_eval=avg_t_each_eval)
         else:
             self.start_from_checkpoint = False
 

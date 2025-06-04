@@ -75,8 +75,8 @@ class SA(BasicAlgo):
 
                 self.start_from_checkpoint = False
             else:
-                result = self.problem.evaluate(now_x.get("X"), return_values_of=["F", "macro_pos"])
-                now_hpwl, now_macro_pos = result[0].item(), result[1].item()
+                result = self.problem.evaluate(now_x.get("X"), return_values_of=["F", "overlap_rate", "macro_pos"])
+                now_hpwl, now_overlap_rate, now_macro_pos = result[0].item(), result[1].item(), result[2].item()
 
                 if self.population_hpwl < now_hpwl:
                     # sa
@@ -98,6 +98,7 @@ class SA(BasicAlgo):
 
                 self._record_results(
                     hpwl=np.array([now_hpwl]),
+                    overlap_rate=np.array([now_overlap_rate]),
                     macro_pos_all=np.array([now_macro_pos]),
                     t_each_eval=t_each_eval,
                     avg_t_each_eval=avg_t_each_eval,

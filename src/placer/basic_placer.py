@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from utils.debug import *
-from utils.compute_res import comp_res
+from utils.compute_res import comp_res, comp_overlap
 from utils.read_benchmark.read_aux import write_pl
 from utils.read_benchmark.read_def import write_def
 from utils.constant import get_n_power
@@ -30,7 +30,7 @@ class BasicPlacer:
         self.metrics_file = os.path.join(args.result_path, "metrics.csv")
         with open(self.metrics_file, 'a', newline='') as f:
             writer = csv.writer(f)
-            header = ["n_eval", "his_best_hpwl", "pop_best_hpwl", "pop_avg_hpwl", "pop_std_hpwl", "t_each_eval", "avg_t_each_eval"]
+            header = ["n_eval", "his_best_hpwl", "pop_best_hpwl", "pop_avg_hpwl", "pop_std_hpwl", "overlap_rate", "t_each_eval", "avg_t_each_eval"]
             writer.writerow(header)
         
         self.placement_saving_lst = []
@@ -47,7 +47,8 @@ class BasicPlacer:
             hpwl = self.gp_evaluator.evaluate(macro_pos=macro_pos)
         else:
             hpwl = comp_res(macro_pos=macro_pos, placedb=self.placedb)
-        return hpwl, macro_pos
+        overlap_rate = comp_overlap(macro_pos=macro_pos, placedb=self.placedb)
+        return hpwl, overlap_rate, macro_pos
 
     def save_placement(self, macro_pos, n_eval, hpwl):
         logging.info("Placer saving placement")
@@ -127,12 +128,13 @@ class BasicPlacer:
             pop_best_hpwl, 
             pop_avg_hpwl, 
             pop_std_hpwl,
+            overlap_rate,
             t_each_eval=0,
             avg_t_each_eval=0
             ):
         with open(self.metrics_file, 'a', newline='') as f:
             writer = csv.writer(f)
-            content = [n_eval, his_best_hpwl, pop_best_hpwl, pop_avg_hpwl, pop_std_hpwl, t_each_eval, avg_t_each_eval]
+            content = [n_eval, his_best_hpwl, pop_best_hpwl, pop_avg_hpwl, pop_std_hpwl, overlap_rate, t_each_eval, avg_t_each_eval]
             writer.writerow(content)
 
     def _save_checkpoint(self, checkpoint_path):

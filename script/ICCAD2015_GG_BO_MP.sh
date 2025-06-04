@@ -3,6 +3,7 @@ algo=bo
 
 for benchmark in adaptec1 adaptec2 adaptec3 adaptec4 bigblue1 bigblue3
 do
+benchmark=${benchmark_prefix}${i}
 python ../src/main.py \
     --name=ISPD2005_HPO_BO_MP \
     --benchmark=${benchmark} \

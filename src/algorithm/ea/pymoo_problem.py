@@ -24,6 +24,7 @@ class PlacementProblem(Problem):
     
     def _evaluate(self, x, out, *args, **kwargs):
         y = []
+        overlap_rate = []
         macro_pos_all = []
         
         if ray.available_resources().get("CPU", 0) > 1:
@@ -32,11 +33,13 @@ class PlacementProblem(Problem):
         else:
             results = [self.placer.evaluate(x0) for x0 in x]
         
-        for hpwl, macro_pos in results:
+        for hpwl, o_r, macro_pos in results:
             y.append(hpwl)
+            overlap_rate.append(o_r)
             macro_pos_all.append(macro_pos)
             
         out["F"] = np.array(y)
+        out["overlap_rate"] = np.array(overlap_rate)
         out["macro_pos"] = macro_pos_all
         
 class GridGuidePlacementProblem(PlacementProblem):
