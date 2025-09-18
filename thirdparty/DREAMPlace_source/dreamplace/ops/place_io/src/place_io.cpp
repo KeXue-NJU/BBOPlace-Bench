@@ -59,21 +59,23 @@ bool write(PlaceDB const& db,
 template <typename T>
 void apply(PlaceDB& db, 
         pybind11::array_t<T, pybind11::array::c_style | pybind11::array::forcecast> const& x, 
-        pybind11::array_t<T, pybind11::array::c_style | pybind11::array::forcecast> const& y 
+        pybind11::array_t<T, pybind11::array::c_style | pybind11::array::forcecast> const& y,
+        bool all_movable
         )
 {
     // assume all the movable nodes are in front of fixed nodes 
     // this is ensured by PlaceDB::sortNodeByPlaceStatus()
     for (auto& node : db.nodes())
     {
-        if (node.status() != PlaceStatusEnum::FIXED)
+        if ((node.status() != PlaceStatusEnum::FIXED) || all_movable)
         {
             PlaceDB::coordinate_type xx = std::round(x.at(node.id())); 
             PlaceDB::coordinate_type yy = std::round(y.at(node.id())); 
             moveTo(node, xx, yy);
 
             // update place status 
-            node.setStatus(PlaceStatusEnum::PLACED); 
+            // node.setStatus(PlaceStatusEnum::PLACED); 
+            node.setStatus(node.status()); 
             // update orient 
             auto rowId = db.getRowIndex(node.yl());
             auto const& row = db.row(rowId); 
@@ -179,11 +181,13 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
             "Write Placement Solution (double)");
     m.def("apply", [](DREAMPLACE_NAMESPACE::PlaceDB& db, 
                 pybind11::array_t<float, pybind11::array::c_style | pybind11::array::forcecast> const& x, 
-                pybind11::array_t<float, pybind11::array::c_style | pybind11::array::forcecast> const& y) {apply(db, x, y);}, 
+                pybind11::array_t<float, pybind11::array::c_style | pybind11::array::forcecast> const& y,
+                bool all_movable) {apply(db, x, y, all_movable);}, 
              "Apply Placement Solution (float)");
     m.def("apply", [](DREAMPLACE_NAMESPACE::PlaceDB& db, 
                 pybind11::array_t<double, pybind11::array::c_style | pybind11::array::forcecast> const& x, 
-                pybind11::array_t<double, pybind11::array::c_style | pybind11::array::forcecast> const& y) {apply(db, x, y);},
+                pybind11::array_t<double, pybind11::array::c_style | pybind11::array::forcecast> const& y,
+                bool all_movable) {apply(db, x, y, all_movable);},
              "Apply Placement Solution (double)");
     m.def("pydb", [](DREAMPLACE_NAMESPACE::PlaceDB const& db){return DREAMPLACE_NAMESPACE::PyPlaceDB(db);}, "Convert PlaceDB to PyPlaceDB");
     m.def("forward", &DREAMPLACE_NAMESPACE::place_io_forward, "PlaceDB IO Read");

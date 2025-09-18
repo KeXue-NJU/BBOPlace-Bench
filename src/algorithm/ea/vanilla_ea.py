@@ -1,4 +1,4 @@
-from .pymoo_problem import GridGuidePlacementProblem, SequencePairPlacementProblem, HyperparameterPlacementProblem
+from problem.pymoo_problem import GridGuidePlacementProblem, SequencePairPlacementProblem, HyperparameterPlacementProblem
 import numpy as np 
 from utils.debug import * 
 from utils.constant import INF
@@ -11,11 +11,11 @@ import time
 import os
 import pickle
 
-from .operators import REGISTRY as OPS_REGISTRY
+from operators import REGISTRY as OPS_REGISTRY
 
-class EA(BasicAlgo):
+class VanillaEA(BasicAlgo):
     def __init__(self, args, placer, logger):
-        super(EA, self).__init__(args=args, placer=placer, logger=logger)
+        super(VanillaEA, self).__init__(args=args, placer=placer, logger=logger)
         self.node_cnt = placer.placedb.node_cnt
         self.best_hpwl = INF
         

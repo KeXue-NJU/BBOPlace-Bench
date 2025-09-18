@@ -140,8 +140,6 @@ if __name__ == "__main__":
     from placedb import PlaceDB
     from placer import REGISTRY as PLACER_REGISTRY
     from algorithm import REGISTRY as ALGO_REGISTRY
-    # import torch
-    # assert0(torch.cuda.is_available())
     
     cpus = min(args.n_cpu_max, cpus)
 

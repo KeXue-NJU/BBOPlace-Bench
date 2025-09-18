@@ -3,7 +3,7 @@ import os
 import pickle
 from pypop7.optimizers.pso.pso import PSO as PYPSO
 from pypop7.optimizers.core.optimizer import Optimizer
-from .pso_problem import GridGuidePlacementProblem, SequencePairPlacementProblem, HyperparameterPlacementProblem
+from problem.pso_problem import GridGuidePlacementProblem, SequencePairPlacementProblem, HyperparameterPlacementProblem
 import numpy as np 
 import logging
 from utils.debug import * 
@@ -11,7 +11,7 @@ from utils.constant import INF
 from placer.dmp_placer import params_space
 from ..basic_algo import BasicAlgo
 
-from algorithm.ea.operators import REGISTRY as OPS_REGISTRY
+from operators import REGISTRY as OPS_REGISTRY
 
 class Wrapped_PYPSO(PYPSO):
     def __init__(self, args, placer, problem, options):

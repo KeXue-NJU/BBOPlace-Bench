@@ -43,6 +43,8 @@ class GridGuidePlacer(BasicPlacer):
         hpwl_info_for_each_net = {}
         hpwl = 0.0
 
+        view_mask = np.zeros((self.n_grid_x, self.n_grid_y))
+
         for macro in self.ranked_macro:
             size_x = self.placedb.node_info[macro]["size_x"]
             size_y = self.placedb.node_info[macro]["size_y"]
@@ -69,6 +71,8 @@ class GridGuidePlacer(BasicPlacer):
             # get wire mask
             for net_name in self.placedb.node_to_net_dict[macro]:
                 net_info = hpwl_info_for_each_net.get(net_name, {})
+                if net_info == {}:
+                    continue
                 x_offset = self.placedb.net_info[net_name]["nodes"][macro]["x_offset"] + 0.5 * size_x
                 y_offset = self.placedb.net_info[net_name]["nodes"][macro]["y_offset"] + 0.5 * size_y
 
@@ -83,17 +87,33 @@ class GridGuidePlacer(BasicPlacer):
                 wire_mask += np.add.outer(x_min_diff + x_max_diff, np.zeros(self.n_grid_y))
                 wire_mask += np.add.outer(np.zeros(self.n_grid_x), y_min_diff + y_max_diff)
 
-            mask = wire_mask * position_mask
+            # mask = wire_mask * position_mask
+            mask = np.where(position_mask == INF, INF, wire_mask)
             min_ele = np.min(mask)
             hpwl += min_ele
             
             available_scale_coor = np.column_stack(np.where(mask == min_ele))
             grid_pos = np.array(macro_grid_pos[macro])
 
+
             dis_array = np.linalg.norm(available_scale_coor * np.array([self.grid_width, self.grid_height]) - grid_pos, axis=1, ord=1)
             chosen_scale_x, chosen_scale_y = available_scale_coor[np.argmin(dis_array)]
 
             placed_macro_grid_pos[macro] = (chosen_scale_x, chosen_scale_y)
+            # for debug
+            if np.any(
+                view_mask[chosen_scale_x:chosen_scale_x + scaled_size_x, 
+                chosen_scale_y:chosen_scale_y + scaled_size_y] == 1
+                ):
+                partial_view_mask = view_mask[chosen_scale_x:chosen_scale_x + scaled_size_x, chosen_scale_y:chosen_scale_y + scaled_size_y]
+                partial_wire_mask = wire_mask[chosen_scale_x:chosen_scale_x + scaled_size_x, chosen_scale_y:chosen_scale_y + scaled_size_y]
+                partial_position_mask = position_mask[chosen_scale_x:chosen_scale_x + scaled_size_x, chosen_scale_y:chosen_scale_y + scaled_size_y]
+                import pdb; pdb.set_trace()
+                # assert0(
+                #     wire_mask[chosen_scale_x:chosen_scale_x + scaled_size_x, chosen_scale_y:chosen_scale_y + scaled_size_y],
+                #     position_mask[chosen_scale_x:chosen_scale_x + scaled_size_x, chosen_scale_y:chosen_scale_y + scaled_size_y]
+                # )
+            view_mask[chosen_scale_x:chosen_scale_x + scaled_size_x, chosen_scale_y:chosen_scale_y + scaled_size_y] = 1
 
             center_x = self.grid_width * chosen_scale_x + 0.5 * size_x
             center_y = self.grid_height * chosen_scale_y + 0.5 * size_y

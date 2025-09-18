@@ -1,5 +1,5 @@
 problem_formulation=grid_guide
-algo=cma_es
+algo=es
 benchmark_prefix=superblue
 
 for i in 1 3 4 5 7 10 16 18
