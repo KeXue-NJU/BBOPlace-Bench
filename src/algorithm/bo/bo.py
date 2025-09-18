@@ -27,7 +27,7 @@ from utils.debug import *
 from utils.constant import INF
 from utils.data_utils import FeatureCache 
 from utils.random_parser import set_state
-from .acqf_problem import GridGuideAcquisitionFuncProblem, SequencePairAcquisitionFuncProblem
+from problem.acqf_problem import GridGuideAcquisitionFuncProblem, SequencePairAcquisitionFuncProblem
 from algorithm.ea.operators import REGISTRY as OPS_REGISTRY
 from algorithm.ea.pymoo_problem import (
     GridGuidePlacementProblem, 

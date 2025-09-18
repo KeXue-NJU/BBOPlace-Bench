@@ -1,5 +1,5 @@
 problem_formulation=dmp
-algo=cma_es
+algo=es
 
 for benchmark in adaptec1 adaptec2 adaptec3 adaptec4 bigblue1 bigblue3
 do

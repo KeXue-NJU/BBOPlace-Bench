@@ -1,13 +1,13 @@
 REGISTRY = {}
 
-from .ea.ea import EA
+from .ea.vanilla_ea import VanillaEA
 from .bo.bo import BO 
-from .ea.sa import SA
-from .cma_es.cma_es import CMAES
-from .pso.pso import PSO
+from .sa.sa import SA
+from .ea.es import ES
+from .ea.pso import PSO
 
-REGISTRY["ea"] = EA
+REGISTRY["ea"] = VanillaEA
 REGISTRY["bo"] = BO
 REGISTRY["sa"] = SA
-REGISTRY["cma_es"] = CMAES
+REGISTRY["es"] = ES
 REGISTRY["pso"] = PSO

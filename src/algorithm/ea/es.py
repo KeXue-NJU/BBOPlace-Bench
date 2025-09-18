@@ -8,7 +8,7 @@ from utils.constant import INF
 from utils.random_parser import set_state
 from placer.dmp_placer import params_space
 from ..basic_algo import BasicAlgo
-from algorithm.ea.pymoo_problem import (
+from problem.pymoo_problem import (
     GridGuidePlacementProblem,
     SequencePairPlacementProblem,
     HyperparameterPlacementProblem
@@ -16,15 +16,15 @@ from algorithm.ea.pymoo_problem import (
 import time 
 import os 
 
-from algorithm.ea.operators import REGISTRY as OPS_REGISTRY
+from operators import REGISTRY as OPS_REGISTRY
 
 @ray.remote(num_cpus=1, num_gpus=1)
 def evaluate_placer(placer, x0):
     return placer.evaluate(x0)
 
-class CMAES(BasicAlgo):
+class ES(BasicAlgo):
     def __init__(self, args, placer, logger):
-        super(CMAES, self).__init__(args=args, placer=placer, logger=logger)
+        super(ES, self).__init__(args=args, placer=placer, logger=logger)
         self.node_cnt = placer.placedb.node_cnt
         self.best_hpwl = INF 
         

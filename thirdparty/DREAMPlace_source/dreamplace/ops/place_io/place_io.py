@@ -56,11 +56,11 @@ class PlaceIOFunction(Function):
                                   node_y)
 
     @staticmethod
-    def apply(raw_db, node_x, node_y):
+    def apply(raw_db, node_x, node_y, all_movable=False):
         """
         @brief apply solution 
         @param raw_db original placement database 
         @param node_x x coordinates of cells, only need movable cells
         @param node_y y coordinates of cells, only need movable cells
         """
-        return place_io_cpp.apply(raw_db, node_x, node_y)
+        return place_io_cpp.apply(raw_db, node_x, node_y, all_movable)
