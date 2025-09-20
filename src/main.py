@@ -4,8 +4,6 @@ import yaml
 import psutil
 import datetime
 import traceback
-import ray
-import ray.tune as tune
 
 sys.path.append(os.path.abspath(".."))
 
@@ -96,6 +94,16 @@ def process_args():
     args = SimpleNamespace(**config_dict)
     args.benchmark_path, args.benchmark_type, args.benchmark_base = process_benchmark_path(config_dict["benchmark"])
 
+    if isinstance(args.gpu, int):
+        args.num_gpus = 1
+        args.gpu = str(args.gpu)
+    elif isinstance(args.gpu, tuple):
+        args.num_gpus = len(args.gpu)
+        gpu = [str(gpu) for gpu in args.gpu]
+        args.gpu = ",".join(gpu)
+    else:
+        raise TypeError(f"args.gpu must be int or tuple, but {args.gpu} is given")
+
     setattr(args, "ROOT_DIR", ROOT_DIR)
     setattr(args, "THIRDPARTY_DIR", THIRDPARTY_DIR)
     setattr(args, "SOURCE_DIR", SOURCE_DIR)
@@ -137,19 +145,23 @@ if __name__ == "__main__":
     args = process_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
+    import ray
     from placedb import PlaceDB
     from placer import REGISTRY as PLACER_REGISTRY
     from algorithm import REGISTRY as ALGO_REGISTRY
     
-    cpus = min(args.n_cpu_max, cpus)
+    num_cpus = min(args.n_cpu_max, cpus)
+        
 
-    ray.init(num_cpus=cpus,
+    ray.init(
+        num_cpus=num_cpus,
             num_gpus=1,
             include_dashboard=False,
             logging_level=logging.ERROR,
             _temp_dir=os.path.expanduser('~/tmp'),
-            ignore_reinit_error=True)
-
+            ignore_reinit_error=True,
+            runtime_env={"env_vars": {"CUDA_VISIBLE_DEVICES": "0,1,2,3"}}
+    )
 
     if args.run_mode == "single":
         single_run(args)

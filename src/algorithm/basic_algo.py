@@ -29,7 +29,7 @@ class BasicAlgo:
     def run(self):
         pass
 
-    def _record_results(self, hpwl, overlap_rate, macro_pos_all, t_each_eval=0, avg_t_each_eval=0):
+    def _record_results(self, hpwl, overlap_rate, macro_pos_all, t_each_eval=0, avg_t_each_eval=0, avg_t_eval_solution=0):
         if isinstance(hpwl, torch.Tensor):
             hpwl = hpwl.detach().cpu().numpy()
         hpwl = hpwl.flatten()
@@ -62,6 +62,9 @@ class BasicAlgo:
             self.logger.add("overlap_rate", o_r)
             self.logger.add("Time/each_eval", t_each_eval)
             self.logger.add("Time/avg_each_eval", avg_t_each_eval)
+            self.logger.add("Time/avg_algo_optimization", avg_t_each_eval - avg_t_eval_solution)
+            self.logger.add("Time/avg_eval_solution", avg_t_eval_solution)
+
             self.logger.step()
 
             self.placer.save_metrics(
@@ -72,7 +75,8 @@ class BasicAlgo:
                 pop_std_hpwl=pop_std_hpwl,
                 overlap_rate=o_r,
                 t_each_eval=t_each_eval,
-                avg_t_each_eval=avg_t_each_eval
+                avg_t_each_eval=avg_t_each_eval,
+                avg_t_eval_solution=avg_t_eval_solution
             )
         
         
@@ -108,6 +112,8 @@ class BasicAlgo:
             assert self.n_eval == len(log_data["overlap_rate"])
             assert self.n_eval == len(log_data["Time/each_eval"]) 
             assert self.n_eval == len(log_data["Time/avg_each_eval"]) 
+            assert self.n_eval == len(log_data["Time/avg_algo_optimization"]) 
+            assert self.n_eval == len(log_data["Time/avg_eval_solution"]) 
             
             set_state(log_data)
 
@@ -119,6 +125,8 @@ class BasicAlgo:
                 self.logger.add("overlap_rate", log_data["overlap_rate"][i_eval])
                 self.logger.add("Time/each_eval", log_data["Time/each_eval"][i_eval])
                 self.logger.add("Time/avg_each_eval", log_data["Time/avg_each_eval"][i_eval])
+                self.logger.add("Time/avg_algo_optimization", log_data["Time/avg_algo_optimization"][i_eval])
+                self.logger.add("Time/avg_eval_solution", log_data["Time/avg_eval_solution"][i_eval])
                 self.logger.step()
 
                 self.placer.save_metrics(
@@ -129,10 +137,13 @@ class BasicAlgo:
                     pop_std_hpwl=log_data["HPWL/pop_std"][i_eval],
                     overlap_rate=log_data["overlap_rate"][i_eval],
                     t_each_eval=log_data["Time/each_eval"][i_eval],
-                    avg_t_each_eval=log_data["Time/avg_each_eval"][i_eval]
+                    avg_t_each_eval=log_data["Time/avg_each_eval"][i_eval],
+                    avg_t_algo_optimization=log_data["Time/avg_algo_optimization"][i_eval],
+                    avg_t_eval_solution=log_data["Time/avg_eval_solution"][i_eval],
                 )
             self.best_hpwl = log_data["HPWL/his_best"][self.n_eval-1]
             self.t_total   = sum(log_data["Time/each_eval"])
 
+            self.placer.t_eval_solution_total = sum(log_data["Time/avg_eval_solution"])
             self.placer._load_checkpoint(checkpoint_path=self.args.checkpoint)
 

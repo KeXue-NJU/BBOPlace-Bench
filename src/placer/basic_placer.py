@@ -5,14 +5,19 @@ from utils.read_benchmark.read_aux import write_pl
 from utils.read_benchmark.read_def import write_def
 from utils.constant import get_n_power
 
-from gp_evaluator import GPEvaluator
 
 import os
 import csv
+import ray
+import time
 import logging
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+
+@ray.remote(num_cpus=1, num_gpus=0.1)
+def evaluate_placer(placer, x0):
+    return placer._evaluate(x0)
 
 class BasicPlacer:
     def __init__(self, args, placedb) -> None:
@@ -30,7 +35,18 @@ class BasicPlacer:
         self.metrics_file = os.path.join(args.result_path, "metrics.csv")
         with open(self.metrics_file, 'a', newline='') as f:
             writer = csv.writer(f)
-            header = ["n_eval", "his_best_hpwl", "pop_best_hpwl", "pop_avg_hpwl", "pop_std_hpwl", "overlap_rate", "t_each_eval", "avg_t_each_eval"]
+            header = [
+                "n_eval", 
+                "his_best_hpwl", 
+                "pop_best_hpwl", 
+                "pop_avg_hpwl", 
+                "pop_std_hpwl", 
+                "overlap_rate", 
+                "t_each_eval", 
+                "avg_t_each_eval",
+                "avg_t_algo_optimization",
+                "avg_t_eval_solution"
+            ]
             writer.writerow(header)
         
         self.placement_saving_lst = []
@@ -38,17 +54,42 @@ class BasicPlacer:
         self.n_max_saving_placement = args.n_max_saving_placement
 
         if self.args.eval_gp_hpwl:
+            from gp_evaluator import GPEvaluator
             self.gp_evaluator = GPEvaluator(args=args,
                                             placedb=placedb)
+            
+        self.t_eval_solution_total = 0
 
-    def evaluate(self, x):
+    def _evaluate(self, x):
+        # t = time.time()
         macro_pos = self._genotype2phenotype(x)
         if self.args.eval_gp_hpwl:
             hpwl = self.gp_evaluator.evaluate(macro_pos=macro_pos)
         else:
             hpwl = comp_res(macro_pos=macro_pos, placedb=self.placedb)
         overlap_rate = comp_overlap(macro_pos=macro_pos, placedb=self.placedb)
+        # t_eval_solution = time.time() - t
         return hpwl, overlap_rate, macro_pos
+    
+    
+    def evaluate(self, x):
+        t = time.time()
+        if self.args.n_cpu_max > 1:
+            futures = [evaluate_placer.remote(self, x0) for x0 in x]
+            results = ray.get(futures)
+        else:
+            results = [self._evaluate(x0) for x0 in x]
+        t_eval_solution = time.time() - t
+        
+        hpwl_all = []
+        overlap_rate_all = []
+        macro_pos_all = []
+        for hpwl, overlap_rate, macro_pos in results:
+            hpwl_all.append(hpwl)
+            overlap_rate_all.append(overlap_rate)
+            macro_pos_all.append(macro_pos)
+        self.t_eval_solution_total += t_eval_solution
+        return hpwl_all, overlap_rate_all, macro_pos_all
 
     def save_placement(self, macro_pos, n_eval, hpwl):
         logging.info("Placer saving placement")
@@ -130,11 +171,23 @@ class BasicPlacer:
             pop_std_hpwl,
             overlap_rate,
             t_each_eval=0,
-            avg_t_each_eval=0
+            avg_t_each_eval=0,
+            avg_t_eval_solution=0,
             ):
         with open(self.metrics_file, 'a', newline='') as f:
             writer = csv.writer(f)
-            content = [n_eval, his_best_hpwl, pop_best_hpwl, pop_avg_hpwl, pop_std_hpwl, overlap_rate, t_each_eval, avg_t_each_eval]
+            content = [
+                n_eval, 
+                his_best_hpwl, 
+                pop_best_hpwl, 
+                pop_avg_hpwl, 
+                pop_std_hpwl, 
+                overlap_rate, 
+                t_each_eval, 
+                avg_t_each_eval,
+                avg_t_each_eval - avg_t_eval_solution,
+                avg_t_eval_solution
+            ]
             writer.writerow(content)
 
     def _save_checkpoint(self, checkpoint_path):
