@@ -135,7 +135,7 @@ class BO(BasicAlgo):
                 [entry[ent_i] for entry in self.params_space.values()]
             bounds_ = np.ones((2, self.dim))
             bounds_[0] = np.array(extract(0))
-            bounds_[1] = np.array(extract(0))
+            bounds_[1] = np.array(extract(1))
             self.bounds = torch.from_numpy(bounds_).to(**tkwargs)
             
         else:
@@ -156,7 +156,8 @@ class BO(BasicAlgo):
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(model.likelihood, model).to(**tkwargs)
         if state_dict is not None:
             model.load_state_dict(state_dict)
-        fit_gpytorch_mll(mll)
+        with gpytorch.settings.cholesky_jitter(1e-4):
+            fit_gpytorch_mll(mll)
         return model
     
     def _init_samples(self, n_samples):  
@@ -187,7 +188,7 @@ class BO(BasicAlgo):
     def _get_acqf(self, acqf_type, model, train_X: Tensor, train_Y: Tensor):
         if acqf_type == 'EI':
             AF = ExpectedImprovement(
-                model, best_f=train_Y.max().item()).to(**tkwargs)
+                model, best_f=train_Y.min().item(), maximize=False).to(**tkwargs)
             
         elif acqf_type == 'LCB_lower_bound':
             def LCB_lower_bound(X: Tensor):
@@ -209,7 +210,7 @@ class BO(BasicAlgo):
         
         if is_torch_tensor:
             if self.placer_type != "dmp":
-                x = x.detach().cpu().numpy().astype(np.int32)
+                x = np.round(x.detach().cpu().numpy()).astype(np.int32)
             else:
                 x = x.detach().cpu().numpy()
         
@@ -229,26 +230,28 @@ class BO(BasicAlgo):
                 eliminate_duplicates=True
             )
 
-            res = minimize(
-                problem=acqf_problem,
-                algorithm=algo,
-                termination=("n_gen", self.args.opt_acqf_iter),
-                verbose=False
-            )
+            with gpytorch.settings.cholesky_jitter(1e-4):
+                res = minimize(
+                    problem=acqf_problem,
+                    algorithm=algo,
+                    termination=("n_gen", self.args.opt_acqf_iter),
+                    verbose=False
+                )
             
             proposed_X = res.pop.get("X")
             
         elif self.placer_type == "dmp" or self.placer_type == "grid_guide":
             normalized_bounds = torch.stack([torch.zeros(self.dim), torch.ones(self.dim)]).to(**tkwargs)
-            proposed_X, _ = optimize_acqf(
-                acq_function=acqf,
-                bounds=normalized_bounds,
-                q=num_samples,
-                num_restarts=10,
-                raw_samples=512,
-                options={"batch_limit": 5, "maxiter": 200},
-                fixed_features=None,
-            )
+            with gpytorch.settings.cholesky_jitter(1e-4):
+                proposed_X, _ = optimize_acqf(
+                    acq_function=acqf,
+                    bounds=normalized_bounds,
+                    q=num_samples,
+                    num_restarts=10,
+                    raw_samples=512,
+                    options={"batch_limit": 5, "maxiter": 200},
+                    fixed_features=None,
+                )
             proposed_X = unnormalize(proposed_X.detach(), self.bounds).cpu().numpy()
             
         else:
@@ -320,6 +323,20 @@ class BO(BasicAlgo):
             
             self.train_X = torch.cat((self.train_X, proposed_X))
             self.train_Y = torch.cat((self.train_Y, proposed_Y.reshape(-1, 1)))
+
+            # De-duplicate training data for grid_guide placer
+            if self.placer_type == "grid_guide":
+                # Convert to integer coordinates to identify duplicates
+                # This is necessary because continuous outputs from acqf optimization
+                # can round to the same integer grid positions, causing duplicates.
+                train_X_int = torch.round(self.train_X).cpu().numpy()
+                _, unique_indices = np.unique(train_X_int, axis=0, return_index=True)
+                
+                if len(unique_indices) < self.train_X.shape[0]:
+                    self.logger.info(f"Duplicate points found. Reducing dataset from {self.train_X.shape[0]} to {len(unique_indices)}")
+                    # Keep only unique points
+                    self.train_X = self.train_X[unique_indices]
+                    self.train_Y = self.train_Y[unique_indices]
             
             self._save_checkpoint()
             

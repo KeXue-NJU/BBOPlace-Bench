@@ -8,10 +8,6 @@ import math
 import ray 
 import os 
 
-@ray.remote(num_cpus=1, num_gpus=0.1)
-def evaluate_placer(placer, x0):
-    print('here')
-    return placer.evaluate(x0)
 
 class BasicSampling():
     def __init__(self, args, placer, use_checkpoint=True) -> None:

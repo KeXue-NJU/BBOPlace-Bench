@@ -5,9 +5,6 @@ from pymoo.core.problem import Problem
 
 from utils.debug import *
 
-@ray.remote(num_cpus=1)
-def evaluate_placer(placer, x0):
-    return placer.evaluate(x0)
 
 class PlacementProblem(Problem):
     def __init__(self, n_var, xl, xu, placer):

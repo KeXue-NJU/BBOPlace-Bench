@@ -18,9 +18,6 @@ import os
 
 from operators import REGISTRY as OPS_REGISTRY
 
-@ray.remote(num_cpus=1, num_gpus=1)
-def evaluate_placer(placer, x0):
-    return placer.evaluate(x0)
 
 class ES(BasicAlgo):
     def __init__(self, args, placer, logger):

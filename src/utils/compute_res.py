@@ -50,8 +50,8 @@ def comp_overlap(macro_pos, placedb):
             
             delta_x = min(m_xh, xh) - max(m_xl, xl)
             delta_y = min(m_yh, yh) - max(m_yl, yl)
-            assert delta_x >= 0
-            assert delta_y >= 0
+            assert delta_x >= 0, (m_xh, xh, m_xl, xl)
+            assert delta_y >= 0, (m_yh, yh, m_yl, yl)
             overlap_area += delta_x * delta_y
     
     return overlap_area / placedb.macro_area_sum

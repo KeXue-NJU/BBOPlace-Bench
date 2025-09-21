@@ -74,7 +74,9 @@ class BasicPlacer:
     
     def evaluate(self, x):
         t = time.time()
-        if self.args.n_cpu_max > 1:
+        if self.args.n_cpu_max > 1 and \
+            not self.args.eval_gp_hpwl and \
+            self.args.placer != "dmp":
             futures = [evaluate_placer.remote(self, x0) for x0 in x]
             results = ray.get(futures)
         else:

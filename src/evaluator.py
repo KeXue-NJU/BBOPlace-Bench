@@ -16,10 +16,6 @@ from placer.dmp_placer import params_space
 THIRDPARTY_DIR = os.path.join(ROOT_DIR, "thirdparty")
 SOURCE_DIR = os.path.join(ROOT_DIR, "src")
 
-@ray.remote(num_cpus=1, num_gpus=1)
-def evaluate_placer(placer, x0):
-    return placer.evaluate(x0)[0]
-
 class Evaluator:
     def __init__(self, args: Namespace):
         assert "placer" in args.__dict__.keys() 
@@ -138,12 +134,7 @@ class Evaluator:
         if x.shape == 1:
             x = x.reshape(1, -1)
 
-        if ray.available_resources().get("CPU", 0) > 1 and \
-                (self.args.placer != "dmp" and not self.args.eval_gp_hpwl):
-            futures = [evaluate_placer.remote(self.placer, x0) for x0 in x]
-            results = ray.get(futures)
-        else:
-            results = [self.placer.evaluate(x0) for x0 in x]
+        hpwl, overlap_rate, macro_pos = self.placer.evaluate(x)
 
-        return np.array(results)
+        return np.array(hpwl)
         
