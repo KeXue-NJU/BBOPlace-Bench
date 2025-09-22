@@ -287,6 +287,8 @@ class DMPPlacer(BasicPlacer):
             return {}
         except TimeoutError:
             return {}
+        except:
+            return {}
         finally:
             signal.alarm(0)
             signal.signal(signal.SIGABRT, original_abort_signal_handler)
