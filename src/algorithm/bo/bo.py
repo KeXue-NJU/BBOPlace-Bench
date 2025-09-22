@@ -156,8 +156,8 @@ class BO(BasicAlgo):
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(model.likelihood, model).to(**tkwargs)
         if state_dict is not None:
             model.load_state_dict(state_dict)
-        with gpytorch.settings.cholesky_jitter(1e-4):
-            fit_gpytorch_mll(mll)
+        # with gpytorch.settings.cholesky_jitter(1e-4):
+        fit_gpytorch_mll(mll)
         return model
     
     def _init_samples(self, n_samples):  
@@ -230,28 +230,28 @@ class BO(BasicAlgo):
                 eliminate_duplicates=True
             )
 
-            with gpytorch.settings.cholesky_jitter(1e-4):
-                res = minimize(
-                    problem=acqf_problem,
-                    algorithm=algo,
-                    termination=("n_gen", self.args.opt_acqf_iter),
-                    verbose=False
-                )
+            # with gpytorch.settings.cholesky_jitter(1e-4):
+            res = minimize(
+                problem=acqf_problem,
+                algorithm=algo,
+                termination=("n_gen", self.args.opt_acqf_iter),
+                verbose=False
+            )
             
             proposed_X = res.pop.get("X")
             
         elif self.placer_type == "dmp" or self.placer_type == "grid_guide":
             normalized_bounds = torch.stack([torch.zeros(self.dim), torch.ones(self.dim)]).to(**tkwargs)
-            with gpytorch.settings.cholesky_jitter(1e-4):
-                proposed_X, _ = optimize_acqf(
-                    acq_function=acqf,
-                    bounds=normalized_bounds,
-                    q=num_samples,
-                    num_restarts=10,
-                    raw_samples=512,
-                    options={"batch_limit": 5, "maxiter": 200},
-                    fixed_features=None,
-                )
+            # with gpytorch.settings.cholesky_jitter(1e-4):
+            proposed_X, _ = optimize_acqf(
+                acq_function=acqf,
+                bounds=normalized_bounds,
+                q=num_samples,
+                num_restarts=10,
+                raw_samples=512,
+                options={"batch_limit": 5, "maxiter": 200},
+                fixed_features=None,
+            )
             proposed_X = unnormalize(proposed_X.detach(), self.bounds).cpu().numpy()
             
         else:
