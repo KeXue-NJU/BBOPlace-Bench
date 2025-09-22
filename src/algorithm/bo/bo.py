@@ -309,7 +309,7 @@ class BO(BasicAlgo):
                                           else None)
         
         # calculate how many batch
-        n_batch = math.ceil((self.args.max_evals + 1 - self.n_init * (self.args.n_sampling_repeat-1) - \
+        n_batch = math.ceil((self.args.max_evals - self.n_init * (self.args.n_sampling_repeat-1) - \
             len(self.train_X)) / self.batch_size)
         
         for i in range(1, n_batch + 1):

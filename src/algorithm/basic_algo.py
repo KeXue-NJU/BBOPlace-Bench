@@ -143,6 +143,6 @@ class BasicAlgo:
             self.best_hpwl = log_data["HPWL/his_best"][self.n_eval-1]
             self.t_total   = sum(log_data["Time/each_eval"])
 
-            self.placer.t_eval_solution_total = sum(log_data["Time/avg_eval_solution"])
+            self.placer.t_eval_solution_total = log_data["Time/avg_eval_solution"][-1] * self.n_eval
             self.placer._load_checkpoint(checkpoint_path=self.args.checkpoint)
 
