@@ -138,7 +138,6 @@ class BasicAlgo:
                     overlap_rate=log_data["overlap_rate"][i_eval],
                     t_each_eval=log_data["Time/each_eval"][i_eval],
                     avg_t_each_eval=log_data["Time/avg_each_eval"][i_eval],
-                    avg_t_algo_optimization=log_data["Time/avg_algo_optimization"][i_eval],
                     avg_t_eval_solution=log_data["Time/avg_eval_solution"][i_eval],
                 )
             self.best_hpwl = log_data["HPWL/his_best"][self.n_eval-1]
