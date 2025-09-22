@@ -143,7 +143,7 @@ def single_run(args):
 
 if __name__ == "__main__":
     args = process_args()
-    # os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
     import ray
     from placedb import PlaceDB

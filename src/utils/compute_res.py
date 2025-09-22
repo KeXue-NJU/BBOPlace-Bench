@@ -1,6 +1,8 @@
 from utils.constant import INF
 from utils.debug import *
 
+import numpy as np
+
 def comp_res(macro_pos, placedb):
     if len(macro_pos) == 0:
         return INF
@@ -14,6 +16,8 @@ def comp_res(macro_pos, placedb):
         for macro in placedb.net_info[net_name]["nodes"]:
             size_x = placedb.node_info[macro]["size_x"]
             size_y = placedb.node_info[macro]["size_y"]
+            if np.isnan(macro_pos[macro][0]) or np.isnan(macro_pos[macro][1]):
+                return INF
             pin_x = macro_pos[macro][0] + size_x / 2 + placedb.net_info[net_name]["nodes"][macro]["x_offset"]
             pin_y = macro_pos[macro][1] + size_y / 2 + placedb.net_info[net_name]["nodes"][macro]["y_offset"]
             max_x = max(pin_x, max_x)
@@ -50,6 +54,9 @@ def comp_overlap(macro_pos, placedb):
             
             delta_x = min(m_xh, xh) - max(m_xl, xl)
             delta_y = min(m_yh, yh) - max(m_yl, yl)
+
+            if np.isnan(delta_x) or np.isnan(delta_y):
+                return 0
             assert delta_x >= 0, (m_xh, xh, m_xl, xl)
             assert delta_y >= 0, (m_yh, yh, m_yl, yl)
             overlap_area += delta_x * delta_y
