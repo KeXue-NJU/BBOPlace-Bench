@@ -99,7 +99,7 @@ class BasicAlgo:
 
         
     def _load_checkpoint(self):
-        if hasattr(self.args, "checkpoint") and os.paQth.exists(self.args.checkpoint):
+        if hasattr(self.args, "checkpoint") and os.path.exists(self.args.checkpoint):
             logging.info(f"Loading checkpoint from {self.args.checkpoint}")
             log_file = os.path.join(self.args.checkpoint, "log.pkl")
             with open(log_file, 'rb') as log_f:
