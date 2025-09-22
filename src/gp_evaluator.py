@@ -75,9 +75,8 @@ class GPEvaluator:
 
             gp_hpwl = self.placer(self.dmp_params, self.dmp_placedb)[-1].hpwl.cpu().item()
             
-
             self.saving_data["placement"][gp_hpwl] = (self.dmp_placedb.node_x.copy(),
-                                                      self.dmp_placedb.node_y.copy())
+                                                        self.dmp_placedb.node_y.copy())
             self.saving_data["figure"][gp_hpwl] = copy.copy(self.placer.pos[0].data.clone().cpu().numpy())
         except KeyboardInterrupt:
             exit(0)

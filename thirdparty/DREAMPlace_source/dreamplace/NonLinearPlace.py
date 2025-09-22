@@ -756,4 +756,8 @@ class NonLinearPlace(BasicPlace.BasicPlace):
             self.plot(params, placedb, iteration, cur_pos)
             
         logging.getLogger().setLevel(original_log_level)
+
+        cur_metric = EvalMetrics.EvalMetrics(iteration)
+        all_metrics.append(cur_metric)
+        cur_metric.evaluate(placedb, {"hpwl": self.op_collections.hpwl_op}, self.pos[0])
         return all_metrics
