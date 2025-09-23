@@ -126,7 +126,7 @@ class BO(BasicAlgo):
                 params_space=params_space,
                 placer=placer
             )
-            self.kernel_type = "default"
+            self.kernel_type = "rbf"
             self.acqf_type = "EI"
             
             self.params_space = params_space
@@ -178,6 +178,22 @@ class BO(BasicAlgo):
             kernel = TransformedCategorical()
         elif kernel_type.lower() == "comb_order":
             kernel = CombinedOrderKernel(n=self.placer.placedb.node_cnt)
+        elif kernel_type.lower() == "rbf":
+            from gpytorch.kernels import (
+                MaternKernel, RBFKernel, ScaleKernel,  
+            )
+            from gpytorch.constraints import Positive  
+            from gpytorch.priors import LogNormalPrior
+            lengthscale_constraint = Positive(lower_bound=1e-3)
+            lengthscale_prior = LogNormalPrior(mean=0.0, std=1.0) 
+            kernel = ScaleKernel(
+                base_kernel=RBFKernel(
+                    lengthscale_constraint=lengthscale_constraint,
+                    lengthscale_prior=lengthscale_prior,
+                    ard_num_dims=self.dim  
+                ),
+                outputscale_constraint=Positive(lower_bound=1e-4)
+            )
         elif kernel_type.lower() == "default":
             kernel = None 
         else:
@@ -291,7 +307,6 @@ class BO(BasicAlgo):
         else:
             self.train_X, self.train_Y = self._init_samples(n_samples=self.n_init)
 
-
         if len(self.train_X) < self.n_init:
             extended_X, extended_Y = self._init_samples(self.n_init - len(self.train_X))
             self.train_X = torch.cat((self.train_X, extended_X))
@@ -311,6 +326,7 @@ class BO(BasicAlgo):
         # calculate how many batch
         n_batch = math.ceil((self.args.max_evals - self.n_init * (self.args.n_sampling_repeat-1) - \
             len(self.train_X)) / self.batch_size)
+        assert0(n_batch, self.args.max_evals, self.n_init, self.args.n_sampling_repeat, len(self.train_X), self.batch_size)
         
         for i in range(1, n_batch + 1):
             
