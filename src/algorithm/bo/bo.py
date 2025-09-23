@@ -126,7 +126,7 @@ class BO(BasicAlgo):
                 params_space=params_space,
                 placer=placer
             )
-            self.kernel_type = "rbf"
+            self.kernel_type = "default"
             self.acqf_type = "EI"
             
             self.params_space = params_space
@@ -156,8 +156,8 @@ class BO(BasicAlgo):
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(model.likelihood, model).to(**tkwargs)
         if state_dict is not None:
             model.load_state_dict(state_dict)
-        # with gpytorch.settings.cholesky_jitter(1e-4):
-        fit_gpytorch_mll(mll)
+        with gpytorch.settings.cholesky_jitter(1e-4):
+            fit_gpytorch_mll(mll)
         return model
     
     def _init_samples(self, n_samples):  
@@ -178,22 +178,6 @@ class BO(BasicAlgo):
             kernel = TransformedCategorical()
         elif kernel_type.lower() == "comb_order":
             kernel = CombinedOrderKernel(n=self.placer.placedb.node_cnt)
-        elif kernel_type.lower() == "rbf":
-            from gpytorch.kernels import (
-                MaternKernel, RBFKernel, ScaleKernel,  
-            )
-            from gpytorch.constraints import Positive  
-            from gpytorch.priors import LogNormalPrior
-            lengthscale_constraint = Positive(lower_bound=1e-3)
-            lengthscale_prior = LogNormalPrior(mean=0.0, std=1.0) 
-            kernel = ScaleKernel(
-                base_kernel=RBFKernel(
-                    lengthscale_constraint=lengthscale_constraint,
-                    lengthscale_prior=lengthscale_prior,
-                    ard_num_dims=self.dim  
-                ),
-                outputscale_constraint=Positive(lower_bound=1e-4)
-            )
         elif kernel_type.lower() == "default":
             kernel = None 
         else:
@@ -246,28 +230,28 @@ class BO(BasicAlgo):
                 eliminate_duplicates=True
             )
 
-            # with gpytorch.settings.cholesky_jitter(1e-4):
-            res = minimize(
-                problem=acqf_problem,
-                algorithm=algo,
-                termination=("n_gen", self.args.opt_acqf_iter),
-                verbose=False
-            )
+            with gpytorch.settings.cholesky_jitter(1e-4):
+                res = minimize(
+                    problem=acqf_problem,
+                    algorithm=algo,
+                    termination=("n_gen", self.args.opt_acqf_iter),
+                    verbose=False
+                )
             
             proposed_X = res.pop.get("X")
             
         elif self.placer_type == "dmp" or self.placer_type == "grid_guide":
             normalized_bounds = torch.stack([torch.zeros(self.dim), torch.ones(self.dim)]).to(**tkwargs)
-            # with gpytorch.settings.cholesky_jitter(1e-4):
-            proposed_X, _ = optimize_acqf(
-                acq_function=acqf,
-                bounds=normalized_bounds,
-                q=num_samples,
-                num_restarts=10,
-                raw_samples=512,
-                options={"batch_limit": 5, "maxiter": 200},
-                fixed_features=None,
-            )
+            with gpytorch.settings.cholesky_jitter(1e-4):
+                proposed_X, _ = optimize_acqf(
+                    acq_function=acqf,
+                    bounds=normalized_bounds,
+                    q=num_samples,
+                    num_restarts=10,
+                    raw_samples=512,
+                    options={"batch_limit": 5, "maxiter": 200},
+                    fixed_features=None,
+                )
             proposed_X = unnormalize(proposed_X.detach(), self.bounds).cpu().numpy()
             
         else:
@@ -326,7 +310,6 @@ class BO(BasicAlgo):
         # calculate how many batch
         n_batch = math.ceil((self.args.max_evals - self.n_init * (self.args.n_sampling_repeat-1) - \
             len(self.train_X)) / self.batch_size)
-        assert0(n_batch, self.args.max_evals, self.n_init, self.args.n_sampling_repeat, len(self.train_X), self.batch_size)
         
         for i in range(1, n_batch + 1):
             

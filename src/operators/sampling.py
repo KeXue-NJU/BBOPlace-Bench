@@ -16,56 +16,56 @@ class BasicSampling():
     
     def _do(self, problem, n_samples, **kwargs):
         n_repeat = self.args.n_sampling_repeat
-        n_solution_in_memory = max(n_samples, self.args.n_solution_in_memory)
-        n_solution_in_memory = min(n_samples * n_repeat, n_solution_in_memory)
-        n_iter = math.ceil(n_samples * n_repeat / n_solution_in_memory)
+        # n_solution_in_memory = max(n_samples, self.args.n_solution_in_memory)
+        # n_solution_in_memory = min(n_samples * n_repeat, n_solution_in_memory)
+        # n_iter = math.ceil(n_samples * n_repeat / n_solution_in_memory)
 
-        # X, y_all, overlap_rate, macro_pos_all = self._sampling_do(problem=problem,
-        #                                         n_samples=n_samples * n_repeat,
-        #                                         kwargs=kwargs)
-        # sorted_indices = np.argsort(y_all)
-        # if n_repeat > 1:
-        #     self.args.record_func(
-        #         hpwl=y_all[sorted_indices[n_samples:]], 
-        #         overlap_rate=overlap_rate[sorted_indices[n_samples:]],
-        #         macro_pos_all=list(np.array(macro_pos_all)[sorted_indices[n_samples:]])
-        #     ) 
-        # return X[sorted_indices[:n_samples]]
-
-        X, Y = None, None
-        macro_pos_all = []
-        y_all = None
-        for i_iter in range(n_iter):
-            if i_iter == n_iter -1:
-                n_sample_per_iter = n_samples * n_repeat - n_solution_in_memory * i_iter
-            else:
-                n_sample_per_iter = n_solution_in_memory
-            
-            x, y, overlap_rate, macro_pos = self._sampling_do(problem=problem,
-                                                n_samples=n_sample_per_iter,
+        X, y_all, overlap_rate, macro_pos_all = self._sampling_do(problem=problem,
+                                                n_samples=n_samples * n_repeat,
                                                 kwargs=kwargs)
-            
-            macro_pos_all += macro_pos
-            if X is None and Y is None and y_all is None:
-                X = x
-                Y = y
-                y_all = y
-            else:
-                X = np.concatenate([X, x], axis=0)
-                Y = np.concatenate([Y, y], axis=0)
-                y_all = np.concatenate([y_all, y], axis=0)
-
-            best_n_indices = np.argsort(Y)[:n_samples]
-            X = X[best_n_indices]
-            Y = Y[best_n_indices]
-        
+        sorted_indices = np.argsort(y_all)
         if n_repeat > 1:
             self.args.record_func(
-                hpwl=y_all[np.argsort(y_all)[n_samples:]], 
-                overlap_rate=overlap_rate,
-                macro_pos_all=list(np.array(macro_pos_all)[np.argsort(y_all)[n_samples:]])
+                hpwl=y_all[sorted_indices[n_samples:]], 
+                overlap_rate=overlap_rate[sorted_indices[n_samples:]],
+                macro_pos_all=list(np.array(macro_pos_all)[sorted_indices[n_samples:]])
             ) 
-        return X
+        return X[sorted_indices[:n_samples]]
+
+        # X, Y = None, None
+        # macro_pos_all = []
+        # y_all = None
+        # for i_iter in range(n_iter):
+        #     if i_iter == n_iter -1:
+        #         n_sample_per_iter = n_samples * n_repeat - n_solution_in_memory * i_iter
+        #     else:
+        #         n_sample_per_iter = n_solution_in_memory
+            
+        #     x, y, overlap_rate, macro_pos = self._sampling_do(problem=problem,
+        #                                         n_samples=n_sample_per_iter,
+        #                                         kwargs=kwargs)
+            
+        #     macro_pos_all += macro_pos
+        #     if X is None and Y is None and y_all is None:
+        #         X = x
+        #         Y = y
+        #         y_all = y
+        #     else:
+        #         X = np.concatenate([X, x], axis=0)
+        #         Y = np.concatenate([Y, y], axis=0)
+        #         y_all = np.concatenate([y_all, y], axis=0)
+
+        #     best_n_indices = np.argsort(Y)[:n_samples]
+        #     X = X[best_n_indices]
+        #     Y = Y[best_n_indices]
+        
+        # if n_repeat > 1:
+        #     self.args.record_func(
+        #         hpwl=y_all[np.argsort(y_all)[n_samples:]], 
+        #         overlap_rate=overlap_rate,
+        #         macro_pos_all=list(np.array(macro_pos_all)[np.argsort(y_all)[n_samples:]])
+        #     ) 
+        # return X
     
     @abstractmethod
     def _sampling_do(self, problem, n_samples, **kwargs):
