@@ -11,6 +11,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <csignal>
 #include "utility/src/namespace.h"
 
 DREAMPLACE_BEGIN_NAMESPACE
@@ -47,12 +48,29 @@ void dreamplacePrintAssertMsg(const char* expr, const char* fileName,
 void dreamplacePrintAssertMsg(const char* expr, const char* fileName,
                               unsigned lineNum, const char* funcName);
 
+// #define dreamplaceAssertMsg(condition, args...)                       \
+//   do {                                                                \
+//     if (!(condition)) {                                               \
+//       ::DREAMPLACE_NAMESPACE::dreamplacePrintAssertMsg(               \
+//           #condition, __FILE__, __LINE__, __PRETTY_FUNCTION__, args); \
+//       abort();                                                        \
+//     }                                                                 \
+//   } while (false)
+// #define dreamplaceAssert(condition)                             \
+//   do {                                                          \
+//     if (!(condition)) {                                         \
+//       ::DREAMPLACE_NAMESPACE::dreamplacePrintAssertMsg(         \
+//           #condition, __FILE__, __LINE__, __PRETTY_FUNCTION__); \
+//       abort();                                                  \
+//     }                                                           \
+//   } while (false)
+
 #define dreamplaceAssertMsg(condition, args...)                       \
   do {                                                                \
     if (!(condition)) {                                               \
       ::DREAMPLACE_NAMESPACE::dreamplacePrintAssertMsg(               \
           #condition, __FILE__, __LINE__, __PRETTY_FUNCTION__, args); \
-      abort();                                                        \
+      raise(SIGABRT);                                                 \
     }                                                                 \
   } while (false)
 #define dreamplaceAssert(condition)                             \
@@ -60,7 +78,7 @@ void dreamplacePrintAssertMsg(const char* expr, const char* fileName,
     if (!(condition)) {                                         \
       ::DREAMPLACE_NAMESPACE::dreamplacePrintAssertMsg(         \
           #condition, __FILE__, __LINE__, __PRETTY_FUNCTION__); \
-      abort();                                                  \
+      raise(SIGABRT);                                           \
     }                                                           \
   } while (false)
 

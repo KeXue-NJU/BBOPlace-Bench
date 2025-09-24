@@ -26,5 +26,6 @@ dockercreate.sh
 benchmarks_bk
 /benchmarks
 new_script
-/thirdparty/dreamplace
+/thirdparty
+!/thirdparty/DREAMPlace_source
 script
