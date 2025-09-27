@@ -6,10 +6,6 @@ import sys
 from utils.debug import *
 import os 
 
-@ray.remote(num_cpus=1)
-def evaluate_placer(placer, x0):
-    return placer.evaluate(x0)
-
 class PlacementProblem(Problem):
     def __init__(self, n_var, xl, xu, placer):
         super().__init__(
@@ -23,24 +19,11 @@ class PlacementProblem(Problem):
 
     
     def _evaluate(self, x, out, *args, **kwargs):
-        y = []
-        overlap_rate = []
-        macro_pos_all = []
-        
-        if ray.available_resources().get("CPU", 0) > 1:
-            futures = [evaluate_placer.remote(self.placer, x0) for x0 in x]
-            results = ray.get(futures)
-        else:
-            results = [self.placer.evaluate(x0) for x0 in x]
-        
-        for hpwl, o_r, macro_pos in results:
-            y.append(hpwl)
-            overlap_rate.append(o_r)
-            macro_pos_all.append(macro_pos)
+        y, overlap_rate, macro_pos = self.placer.evaluate(x)
             
         out["F"] = np.array(y)
         out["overlap_rate"] = np.array(overlap_rate)
-        out["macro_pos"] = macro_pos_all
+        out["macro_pos"] = macro_pos
         
 class GridGuidePlacementProblem(PlacementProblem):
     def __init__(self, n_grid_x, n_grid_y, placer):

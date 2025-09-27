@@ -13,6 +13,10 @@
 DREAMPLACE_BEGIN_NAMESPACE
 
 int dreamplacePrint(MessageType m, const char* format, ...) {
+  // reduce the number of print
+  if (m != MessageType::kINFO) {
+    return 0;
+  }
   va_list args;
   va_start(args, format);
   int ret = dreamplaceVPrintStream(m, stdout, format, args);

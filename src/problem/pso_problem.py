@@ -5,9 +5,6 @@ from pymoo.core.problem import Problem
 
 from utils.debug import *
 
-@ray.remote(num_cpus=1)
-def evaluate_placer(placer, x0):
-    return placer.evaluate(x0)
 
 class PlacementProblem(Problem):
     def __init__(self, n_var, xl, xu, placer):
@@ -24,7 +21,7 @@ class PlacementProblem(Problem):
         self.placer = placer
 
     def fitness_function(self, x):
-        return self.placer.evaluate(x)
+        return self.placer.evaluate([x])
     
     def get_problem_dict(self):
         # assert0(self.xl, self.xu)
@@ -37,20 +34,10 @@ class PlacementProblem(Problem):
         
     
     def _evaluate(self, x, out, *args, **kwargs):
-        y = []
-        macro_pos_all = []
-        
-        if ray.available_resources().get("CPU", 0) > 1:
-            futures = [evaluate_placer.remote(self.placer, x0) for x0 in x]
-            results = ray.get(futures)
-        else:
-            results = [self.placer.evaluate(x0) for x0 in x]
-        
-        for hpwl, macro_pos in results:
-            y.append(hpwl)
-            macro_pos_all.append(macro_pos)
+        y, overlap_rate, macro_pos_all = self.placer.evaluate([x])
             
         out["F"] = np.array(y)
+        out["overlap_rate"] = np.array(overlap_rate)
         out["macro_pos"] = macro_pos_all
     
 class GridGuidePlacementProblem(PlacementProblem):

@@ -8,8 +8,14 @@ import torch as th
 import numpy as np
 import math
 import os
+import socket
 import signal
 import time
+import tempfile
+import json
+import subprocess
+import multiprocessing as mp
+import select
 
 from utils.signal_handler import abort_signal_handler, timeout_handler, AbortSignalException
 from utils.debug import *
@@ -68,13 +74,17 @@ params_space = {
 
 class DMPPlacer(BasicPlacer):
     DMP_CONFIG_PATH = "config/algorithm/dmp_config"
-    DMP_TEMP_BENCHMARK_PATH = "benchmarks/.tmp"
+    DMP_TEMP_BENCHMARK_PATH = "benchmarks/.tmp/HPO"
     DMP_RESULT_DIR = os.path.join(
         "results",
         "%(name)s",
         "%(benchmark)s",
         "%(unique_token)s",
         "dmp_results"
+    )
+    SOCK_PATH = os.path.join(
+        "sock_path",
+        "dmp_worker_HPO_%(unique_token)s.sock"
     )
     AUX_FILES = [
         "%(benchmark)s.aux",
@@ -95,28 +105,43 @@ class DMPPlacer(BasicPlacer):
         super(DMPPlacer, self).__init__(args, placedb)
         self.args = args
         self.placedb = placedb
+
+        self._worker = None
+        self._sock = None
+        self._sock_path = None
+        self._worker_inited = False
+        self.worker_path = os.path.join(self.args.SOURCE_DIR, "placer/dmp_worker.py")
+        
         self.params = DMPParams()
-        self.dmp_pldb = DMPPlaceDB()
-
-        # load default dreamplace config
         self._load_dmp_config()
-
-        # prepare benchmark
         self._prepare_benchmark()
 
-        self.params.fromJson(
-            {
-                "plot_flag": 0,
-                "timing_opt_flag": 0,
-                "random_seed": self.args.seed,
-                "result_dir": self._result_dir,
-                "random_center_init_flag": 1,
-            }
-        )
+        self.timeout_seconds = args.timeout_seconds
 
-        self.dmp_pldb(self.params)
+        self._sock_path = os.path.join(self.args.ROOT_DIR, DMPPlacer.SOCK_PATH % self.args.__dict__)
+        os.makedirs(os.path.dirname(self._sock_path), exist_ok=True)
 
-        self.dmp_plcr = NonLinearPlace(self.params, self.dmp_pldb, timer=None)
+        # self.dmp_pldb = DMPPlaceDB()
+
+        # # load default dreamplace config
+        # self._load_dmp_config()
+
+        # # prepare benchmark
+        # self._prepare_benchmark()
+
+        # self.params.fromJson(
+        #     {
+        #         "plot_flag": 0,
+        #         "timing_opt_flag": 0,
+        #         "random_seed": self.args.seed,
+        #         "result_dir": self._result_dir,
+        #         "random_center_init_flag": 1,
+        #     }
+        # )
+
+        # self.dmp_pldb(self.params)
+
+        # self.dmp_plcr = NonLinearPlace(self.params, self.dmp_pldb, timer=None)
 
 
     @property
@@ -263,36 +288,149 @@ class DMPPlacer(BasicPlacer):
         params_name = list(params_space.keys())
         x = dict(tuple(zip(params_name, list(x))))
         self._load_genotype(x)
+        
+        if not self._ensure_worker():
+            return {}
 
-        original_abort_signal_handler = signal.signal(signal.SIGABRT, abort_signal_handler)
-        original_timeout_handler      = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(600) # maximum execution time
-        t_start = time.time()
+        # place request
+        req = {
+            "cmd": "place",
+            "params_update": {},
+            "macro_lst": self.placedb.macro_lst,
+        }
+        deadline = time.time() + self.timeout_seconds
         try:
-            with th.no_grad():
-                self.dmp_plcr.pos[0].data.copy_(
-                    th.from_numpy(self.dmp_plcr._initialize_position(self.params, self.dmp_pldb)).to(self.dmp_plcr.device) )
+            self._sock.sendall((json.dumps(req) + "\n").encode())
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                self._cleanup_worker()
+                return {}
+            r, _, _ = select.select([self._sock], [], [], remaining)
+            if not r:
+                self._cleanup_worker()
+                return {}
             
-            gp_metrics = self.dmp_plcr(self.params, self.dmp_pldb)
+            data = b""
+            while True:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    self._cleanup_worker()
+                    return {}
+                    
+                chunk = self._sock.recv(65536)
+                if not chunk:
+                    break
+                data += chunk
+                if b"\n" in chunk:
+                    break
+            text = data.decode(errors="ignore")
+            lines = [ln for ln in text.splitlines() if ln.strip()]
+            last_line = lines[-1] if lines else ""
+            out = json.loads(last_line) if last_line else {"ok": False}
+        except:
+            self._cleanup_worker()
+            return {}
 
-            macro_pos = self.dmp_pldb.export(self.params, self.placedb.macro_lst)
-            for node_name in macro_pos.keys():
-                x = macro_pos[node_name][0] / (self.dmp_pldb.xh - self.dmp_pldb.xl) * self.placedb.canvas_width
-                y = macro_pos[node_name][1] / (self.dmp_pldb.yh - self.dmp_pldb.yl) * self.placedb.canvas_height
-                macro_pos[node_name] = (x, y)
+        if isinstance(out, dict) and out.get("ok") and \
+           isinstance(out.get("macro_pos"), dict):
+            macro_pos = out["macro_pos"]
+            for k, v in list(macro_pos.items()):
+                try:
+                    macro_pos[k] = (v[0], v[1])
+                except:
+                    macro_pos[k] = tuple(v)
             return macro_pos
-        except KeyboardInterrupt:
-            exit(0)
-        except AbortSignalException:
+        else:
+            self._cleanup_worker()
             return {}
-        except TimeoutError:
-            return {}
-        finally:
-            signal.alarm(0)
-            signal.signal(signal.SIGABRT, original_abort_signal_handler)
-            signal.signal(signal.SIGALRM, original_timeout_handler)
 
+    def _cleanup_worker(self):
+        if self._sock is not None:
+            self._sock.close()
+            self._sock = None
+        if self._worker is not None:
+            self._worker.kill()
+            self._worker = None
+        if self._sock_path is not None and os.path.exists(self._sock_path):
+            os.unlink(self._sock_path)
+        self._worker_inited = False
+
+    def _ensure_worker(self):
+        if self._worker is not None and \
+           self._worker.poll() is None and \
+           self._sock is not None:
+            return True
+        
+        if os.path.exists(self._sock_path):
+            os.unlink(self._sock_path)
+        
+        # init worker
+        try:
+            self._worker = subprocess.Popen(
+                ["python3", self.worker_path, "--sock", self._sock_path],
+                stdin=None,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=False,
+                cwd=self.args.ROOT_DIR,
+            )
+        except Exception:
+            self._cleanup_worker()
+            return False
+
+        # init sock
+        self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        deadline = time.time() + min(10, self.timeout_seconds)
+        connected = False
+        while time.time() < deadline:
+            try:
+                self._sock.connect(self._sock_path)
+                connected = True
+                break
+            except Exception:
+                time.sleep(0.05)
+        if not connected:
+            self._cleanup_worker()
+            return False
+        self._sock.settimeout(self.timeout_seconds)
+
+        # init worker
+        init_msg = json.dumps({
+            "cmd": "init",
+            "args": {
+                "ROOT_DIR": self.args.ROOT_DIR,
+                "temp_subdir": "HPO",
+                "name": self.args.name,
+                "benchmark": self.args.benchmark,
+                "benchmark_type": self.args.benchmark_type,
+                "unique_token": self.args.unique_token,
+                "seed": self.args.seed,
+            },
+            "canvas_width": self.placedb.canvas_width,
+            "canvas_height": self.placedb.canvas_height,
+        }) + "\n"
+        try:
+            self._sock.sendall(init_msg.encode())
+            data = b""
+            while True:
+                chunk = self._sock.recv(65536)
+                if not chunk:
+                    break
+                data += chunk
+                if b"\n" in chunk:
+                    break
+            line = data.decode(errors="ignore").strip()
+            ack_obj = json.loads(line) if line else {"ok": False}
+        except:
+            self._cleanup_worker()
+            return False
+        if not ack_obj.get("ok"):
+            self._cleanup_worker()
+            return False
+        self._worker_inited = True
+        return True
 
     def __deepcopy__(self, memo=None):
         return self
+    
     

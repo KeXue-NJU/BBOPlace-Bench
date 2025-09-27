@@ -46,8 +46,8 @@ bool boundaryCheck(const T* x, const T* y, const T* node_size_x,
     T node_xh = node_xl + node_size_x[i];
     T node_yh = node_yl + node_size_y[i];
     if (node_xl + precision < xl || node_xh > xh + precision || node_yl + precision < yl || node_yh > yh + precision) {
-      dreamplacePrint(kDEBUG, "node %d (%g, %g, %g, %g) out of boundary\n", i,
-                      node_xl, node_yl, node_xh, node_yh);
+      // dreamplacePrint(kDEBUG, "node %d (%g, %g, %g, %g) out of boundary\n", i,
+      //                 node_xl, node_yl, node_xh, node_yh);
       legal_flag = false;
     }
   }
@@ -72,20 +72,20 @@ bool siteAlignmentCheck(const T* x, const T* y, const T site_width,
     T row_yh = row_yl + row_height;
 
     if (std::abs(row_id_f - row_id) > precision) {
-      dreamplacePrint(
-          kERROR,
-          "node %d (%g, %g) failed to align to row %d (%g, %g), gap %g\n", i,
-          node_xl, node_yl, row_id, row_yl, row_yh, std::abs(node_yl - row_yl));
+      // dreamplacePrint(
+      //     kERROR,
+      //     "node %d (%g, %g) failed to align to row %d (%g, %g), gap %g\n", i,
+      //     node_xl, node_yl, row_id, row_yl, row_yh, std::abs(node_yl - row_yl));
       legal_flag = false;
     }
 
     T site_id_f = (node_xl - xl) / site_width;
     int site_id = floorDiv(node_xl - xl, site_width);
     if (std::abs(site_id_f - site_id) > precision) {
-      dreamplacePrint(
-          kERROR,
-          "node %d (%g, %g) failed to align to row %d (%g, %g) and site\n", i,
-          node_xl, node_yl, row_id, row_yl, row_yh);
+      // dreamplacePrint(
+      //     kERROR,
+      //     "node %d (%g, %g) failed to align to row %d (%g, %g) and site\n", i,
+      //     node_xl, node_yl, row_id, row_yl, row_yh);
       legal_flag = false;
     }
   }
@@ -132,9 +132,9 @@ bool fenceRegionCheck(const T* node_size_x, const T* node_size_y,
       }
       if (node_area > 0)  // not consumed by boxes within a region
       {
-        dreamplacePrint(kERROR,
-                        "node %d (%g, %g, %g, %g), out of fence region %d", i,
-                        node_xl, node_yl, node_xh, node_yh, region_id);
+        // dreamplacePrint(kERROR,
+        //                 "node %d (%g, %g, %g, %g), out of fence region %d", i,
+        //                 node_xl, node_yl, node_xh, node_yh, region_id);
         for (int box_id = box_bgn; box_id < box_end; ++box_id) {
           int box_offset = box_id * 4;
           T box_xl = flat_region_boxes[box_offset];
@@ -142,10 +142,10 @@ bool fenceRegionCheck(const T* node_size_x, const T* node_size_y,
           T box_xh = flat_region_boxes[box_offset + 2];
           T box_yh = flat_region_boxes[box_offset + 3];
 
-          dreamplacePrint(kNONE, " (%g, %g, %g, %g)", box_xl, box_yl, box_xh,
-                          box_yh);
+          // dreamplacePrint(kNONE, " (%g, %g, %g, %g)", box_xl, box_yl, box_xh,
+          //                 box_yh);
         }
-        dreamplacePrint(kNONE, "\n");
+        // dreamplacePrint(kNONE, "\n");
         legal_flag = false;
       }
     }
@@ -268,14 +268,14 @@ bool overlapCheck(const T* node_size_x, const T* node_size_y, const T* x,
           // original criteria: scaleBack2Integer(prev_xh) > scaleBack2Integer(cur_xl)
           // the floating point comparison may introduce incorrect result
           if (prev_site_xh > cur_site_xl) {
-            dreamplacePrint(
-                kERROR,
-                "row %d (%g, %g), overlap node %d (%g, %g, %g, %g) with "
-                "node %d (%g, %g, %g, %g) site (%d, %d), gap %g\n",
-                i, yl + i * row_height, yl + (i + 1) * row_height, prev_node_id,
-                prev_xl, prev_yl, prev_xh, prev_yh, node_id, cur_xl, cur_yl,
-                cur_xh, cur_yh, cur_site_xl, cur_site_xh,
-                prev_xh - cur_xl);
+            // dreamplacePrint(
+            //     kERROR,
+            //     "row %d (%g, %g), overlap node %d (%g, %g, %g, %g) with "
+            //     "node %d (%g, %g, %g, %g) site (%d, %d), gap %g\n",
+            //     i, yl + i * row_height, yl + (i + 1) * row_height, prev_node_id,
+            //     prev_xl, prev_yl, prev_xh, prev_yh, node_id, cur_xl, cur_yl,
+            //     cur_xh, cur_yh, cur_site_xl, cur_site_xh,
+            //     prev_xh - cur_xl);
             legal_flag = false;
           }
         }
@@ -400,11 +400,11 @@ bool legalityCheckSiteMapKernelCPU(const T* init_x, const T* init_y,
             node_yh > site_yl)  // overlap
         {
           if (site_map[iy][ix]) {
-            dreamplacePrint(kERROR,
-                            "detect overlap at site (%g, %g, %g, %g) for node "
-                            "%d (%g, %g, %g, %g)\n",
-                            site_xl, site_yl, site_xh, site_yh, i, node_xl,
-                            node_yl, node_xh, node_yh);
+            // dreamplacePrint(kERROR,
+            //                 "detect overlap at site (%g, %g, %g, %g) for node "
+            //                 "%d (%g, %g, %g, %g)\n",
+            //                 site_xl, site_yl, site_xh, site_yh, i, node_xl,
+            //                 node_yl, node_xh, node_yh);
             legal_flag = false;
           }
           site_map[iy][ix] += 1;

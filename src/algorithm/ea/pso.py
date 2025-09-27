@@ -34,6 +34,7 @@ class Wrapped_PYPSO(PYPSO):
         overlap_rate = np.zeros((self.n_individuals, ))
         p_x, p_y = np.copy(x), np.copy(y)  # personally previous-best positions and fitness
         n_x = np.copy(x)  # neighborly previous-best positions
+
         for i in range(self.n_individuals):
             if self._check_terminations():
                 return v, x, y, p_x, p_y, n_x
@@ -48,6 +49,9 @@ class Wrapped_PYPSO(PYPSO):
             y, overlap_rate, macro_pos = self.fitness_function(x)
         else:
             y, overlap_rate, macro_pos = self.fitness_function(x, args=args)
+        y = y[0]
+        overlap_rate = overlap_rate[0]
+        macro_pos = macro_pos[0]
 
         self.time_function_evaluations += time.time() - self.start_function_evaluations
         self.n_function_evaluations += 1
@@ -59,6 +63,7 @@ class Wrapped_PYPSO(PYPSO):
             self._counter_early_stopping += 1
         else:
             self._counter_early_stopping, self._base_early_stopping = 0, y
+        # highlight(float(y), float(overlap_rate))
         return float(y), float(overlap_rate), macro_pos
     
     def iterate(self, v=None, x=None, y=None, p_x=None, p_y=None, n_x=None, args=None):
@@ -174,6 +179,7 @@ class PSO(BasicAlgo):
         self.t_total += t_eval
         t_each_eval = t_eval / self.args.n_population
         avg_t_each_eval = self.t_total / (self.n_eval + self.args.n_population * 2)
+        avg_t_eval_solution = self.placer.t_eval_solution_total / (self.n_eval + self.args.n_population * 2)
         self.t = t_temp
 
 
@@ -182,7 +188,8 @@ class PSO(BasicAlgo):
                                  overlap_rate=overlap_rate,
                                  macro_pos_all=macro_pos_all,
                                  t_each_eval=t_each_eval, 
-                                 avg_t_each_eval=avg_t_each_eval)
+                                 avg_t_each_eval=avg_t_each_eval,
+                                 avg_t_eval_solution=avg_t_eval_solution)
         else:
             self.start_from_checkpoint = False
 

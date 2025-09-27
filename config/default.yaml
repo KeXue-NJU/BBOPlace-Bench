@@ -36,3 +36,5 @@ eval_gp_hpwl : False
 gpu : 0
 
 error_redirect : True
+
+timeout_seconds : 300

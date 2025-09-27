@@ -8,9 +8,6 @@ import math
 import ray 
 import os 
 
-@ray.remote(num_cpus=1)
-def evaluate_placer(placer, x0):
-    return placer.evaluate(x0)
 
 class BasicSampling():
     def __init__(self, args, placer, use_checkpoint=True) -> None:
@@ -19,45 +16,56 @@ class BasicSampling():
     
     def _do(self, problem, n_samples, **kwargs):
         n_repeat = self.args.n_sampling_repeat
-        n_solution_in_memory = max(n_samples, self.args.n_solution_in_memory)
-        n_solution_in_memory = min(n_samples * n_repeat, n_solution_in_memory)
-        n_iter = math.ceil(n_samples * n_repeat / n_solution_in_memory)
+        # n_solution_in_memory = max(n_samples, self.args.n_solution_in_memory)
+        # n_solution_in_memory = min(n_samples * n_repeat, n_solution_in_memory)
+        # n_iter = math.ceil(n_samples * n_repeat / n_solution_in_memory)
 
-        X, Y = None, None
-        macro_pos_all = []
-        y_all = None
-        for i_iter in range(n_iter):
-            if i_iter == n_iter -1:
-                n_sample_per_iter = n_samples * n_repeat - n_solution_in_memory * i_iter
-            else:
-                n_sample_per_iter = n_solution_in_memory
-            
-            x, y, overlap_rate, macro_pos = self._sampling_do(problem=problem,
-                                                n_samples=n_sample_per_iter,
+        X, y_all, overlap_rate, macro_pos_all = self._sampling_do(problem=problem,
+                                                n_samples=n_samples * n_repeat,
                                                 kwargs=kwargs)
-            
-            macro_pos_all += macro_pos
-            if X is None and Y is None and y_all is None:
-                X = x
-                Y = y
-                y_all = y
-            else:
-                X = np.concatenate([X, x], axis=0)
-                Y = np.concatenate([Y, y], axis=0)
-                y_all = np.concatenate([y_all, y], axis=0)
-
-            best_n_indices = np.argsort(Y)[:n_samples]
-            X = X[best_n_indices]
-            Y = Y[best_n_indices]
-        
+        sorted_indices = np.argsort(y_all)
         if n_repeat > 1:
             self.args.record_func(
-                hpwl=y_all[np.argsort(y_all)[n_samples:]], 
-                overlap_rate=overlap_rate,
-                macro_pos_all=list(np.array(macro_pos_all)[np.argsort(y_all)[n_samples:]])
+                hpwl=y_all[sorted_indices[n_samples:]], 
+                overlap_rate=overlap_rate[sorted_indices[n_samples:]],
+                macro_pos_all=list(np.array(macro_pos_all)[sorted_indices[n_samples:]])
             ) 
+        return X[sorted_indices[:n_samples]]
 
-        return X
+        # X, Y = None, None
+        # macro_pos_all = []
+        # y_all = None
+        # for i_iter in range(n_iter):
+        #     if i_iter == n_iter -1:
+        #         n_sample_per_iter = n_samples * n_repeat - n_solution_in_memory * i_iter
+        #     else:
+        #         n_sample_per_iter = n_solution_in_memory
+            
+        #     x, y, overlap_rate, macro_pos = self._sampling_do(problem=problem,
+        #                                         n_samples=n_sample_per_iter,
+        #                                         kwargs=kwargs)
+            
+        #     macro_pos_all += macro_pos
+        #     if X is None and Y is None and y_all is None:
+        #         X = x
+        #         Y = y
+        #         y_all = y
+        #     else:
+        #         X = np.concatenate([X, x], axis=0)
+        #         Y = np.concatenate([Y, y], axis=0)
+        #         y_all = np.concatenate([y_all, y], axis=0)
+
+        #     best_n_indices = np.argsort(Y)[:n_samples]
+        #     X = X[best_n_indices]
+        #     Y = Y[best_n_indices]
+        
+        # if n_repeat > 1:
+        #     self.args.record_func(
+        #         hpwl=y_all[np.argsort(y_all)[n_samples:]], 
+        #         overlap_rate=overlap_rate,
+        #         macro_pos_all=list(np.array(macro_pos_all)[np.argsort(y_all)[n_samples:]])
+        #     ) 
+        # return X
     
     @abstractmethod
     def _sampling_do(self, problem, n_samples, **kwargs):
@@ -92,20 +100,7 @@ class GrideGuideRandomSampling(BasicSampling, IntegerRandomSampling):
     
     def _sampling_do(self, problem, n_samples, **kwargs):
         x = IntegerRandomSampling._do(self, problem, n_samples, **kwargs)
-        y = []
-        overlap_rate = []
-        macro_pos = []
-        
-        if self.args.n_cpu_max > 1:
-            futures = [evaluate_placer.remote(self.placer, x0) for x0 in x]
-            results = ray.get(futures)
-        else:
-            results = [self.placer.evaluate(x0) for x0 in x]
-        for hpwl, o_r, macro in results:
-            y.append(hpwl)
-            overlap_rate.append(o_r)
-            macro_pos.append(macro)
-        
+        y, overlap_rate, macro_pos = self.placer.evaluate(x)
         y = np.array(y)
         overlap_rate = np.array(overlap_rate)
         return x, y, overlap_rate, macro_pos
@@ -196,19 +191,11 @@ class GrideGuideSpiralSampling(BasicSampling, Sampling):
             pos_x, pos_y, _, _ = placed_macro[macro]
             X[0, i], X[0, i + node_cnt] = pos_x, pos_y
         
-        overlap_rate = []
-        macro_pos = []
-        if self.args.n_cpu_max > 1:
-            futures = [evaluate_placer.remote(self.placer, x0) for x0 in x]
-            results = ray.get(futures)
-        else:
-            results = [self.placer.evaluate(x0) for x0 in X]
-        for hpwl, o_r, macro in results:
-            overlap_rate.append(o_r)
-            macro_pos.append(macro)
         
-        y = np.array([hpwl])
-        overlap_rate = np.array(overlap_rate)
+        y, overlap_rate, macro_pos = self.placer.evaluate(X)
+        
+        y = np.array(y)
+        overlap_rate = np.array([overlap_rate[0]])
         return X, y, overlap_rate, macro_pos
 
 
@@ -244,21 +231,7 @@ class SPRandomSampling(BasicSampling, _SPRandomSampling):
     
     def _sampling_do(self, problem, n_samples, **kwargs):
         x = _SPRandomSampling._do(self, problem, n_samples, **kwargs)
-        y = []
-        overlap_rate = []
-        macro_pos = []
-        
-        if self.args.n_cpu_max > 1:
-            futures = [evaluate_placer.remote(self.placer, x0) for x0 in x]
-            results = ray.get(futures)
-        else:
-            results = [self.placer.evaluate(x0) for x0 in x]
-        
-        for hpwl, o_r, macro in results:
-            y.append(hpwl)
-            overlap_rate.append(overlap_rate)
-            macro_pos.append(macro)
-            
+        y, overlap_rate, macro_pos = self.placer.evaluate(x)
         y = np.array(y)    
         overlap_rate = np.array(overlap_rate) 
         return x, y, overlap_rate, macro_pos
@@ -278,20 +251,7 @@ class HyperparameterSampling(BasicSampling, Sampling):
 
         X = np.dot(np.random.uniform(size=(n_samples, n_var)), np.diag(xd)) + xl
 
-        y = []
-        overlap_rate = []
-        macro_pos = []
-        
-        if self.args.n_cpu_max > 1:
-            futures = [evaluate_placer.remote(self.placer, x0) for x0 in X]
-            results = ray.get(futures)
-        else:
-            results = [self.placer.evaluate(x0) for x0 in X]
-        
-        for hpwl, o_r, macro in results:
-            y.append(hpwl)
-            overlap_rate.append(o_r)
-            macro_pos.append(macro)
+        y, overlap_rate, macro_pos = self.placer.evaluate(X)
 
         y = np.array(y)
         overlap_rate = np.array(overlap_rate)

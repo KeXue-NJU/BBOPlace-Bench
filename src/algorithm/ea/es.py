@@ -18,9 +18,6 @@ import os
 
 from operators import REGISTRY as OPS_REGISTRY
 
-@ray.remote(num_cpus=1, num_gpus=1)
-def evaluate_placer(placer, x0):
-    return placer.evaluate(x0)
 
 class ES(BasicAlgo):
     def __init__(self, args, placer, logger):
@@ -95,28 +92,22 @@ class ES(BasicAlgo):
                 raise ValueError("CMA-ES is not supported for SP")
             elif self.args.placer == "dmp":
                 processed_population = population
+
+            fitness, overlap_rate, macro_pos_all = self.placer.evaluate(processed_population)
             
-            if ray.available_resources().get("CPU", 0) > 1:
-                futures = [evaluate_placer.remote(self.placer, x0) for x0 in processed_population]
-                results = ray.get(futures)
-            else:
-                results = [self.placer.evaluate(x0) for x0 in processed_population]
-            
-            for hpwl, o_r, macro_pos in results:
-                fitness.append(hpwl)
-                overlap_rate.append(o_r)
-                macro_pos_all.append(macro_pos)
                 
             t_temp = time.time() 
             t_eval = t_temp - self.t 
             self.t_total += t_eval
             t_each_eval = t_eval / self.args.pop_size 
             avg_t_each_eval = self.t_total / (self.n_eval + self.args.pop_size)
+            avg_t_eval_solution = self.placer.t_eval_solution_total / (self.n_eval + self.args.pop_size)
             self.t = t_temp
             
             self._record_results(np.array(fitness), np.array(overlap_rate), macro_pos_all,
                                 t_each_eval=t_each_eval,
-                                avg_t_each_eval=avg_t_each_eval)
+                                avg_t_each_eval=avg_t_each_eval,
+                                avg_t_eval_solution=avg_t_eval_solution)
             
             self._save_checkpoint() 
                 

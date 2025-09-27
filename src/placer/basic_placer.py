@@ -5,14 +5,20 @@ from utils.read_benchmark.read_aux import write_pl
 from utils.read_benchmark.read_def import write_def
 from utils.constant import get_n_power
 
-from gp_evaluator import GPEvaluator
+from typing import overload
 
 import os
 import csv
+import ray
+import time
 import logging
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+
+@ray.remote(num_cpus=1, num_gpus=0.1)
+def evaluate_placer(placer, x0):
+    return placer._evaluate(x0)
 
 class BasicPlacer:
     def __init__(self, args, placedb) -> None:
@@ -30,7 +36,18 @@ class BasicPlacer:
         self.metrics_file = os.path.join(args.result_path, "metrics.csv")
         with open(self.metrics_file, 'a', newline='') as f:
             writer = csv.writer(f)
-            header = ["n_eval", "his_best_hpwl", "pop_best_hpwl", "pop_avg_hpwl", "pop_std_hpwl", "overlap_rate", "t_each_eval", "avg_t_each_eval"]
+            header = [
+                "n_eval", 
+                "his_best_hpwl", 
+                "pop_best_hpwl", 
+                "pop_avg_hpwl", 
+                "pop_std_hpwl", 
+                "overlap_rate", 
+                "t_each_eval", 
+                "avg_t_each_eval",
+                "avg_t_algo_optimization",
+                "avg_t_eval_solution"
+            ]
             writer.writerow(header)
         
         self.placement_saving_lst = []
@@ -38,17 +55,44 @@ class BasicPlacer:
         self.n_max_saving_placement = args.n_max_saving_placement
 
         if self.args.eval_gp_hpwl:
+            from gp_evaluator import GPEvaluator
             self.gp_evaluator = GPEvaluator(args=args,
                                             placedb=placedb)
+            
+        self.t_eval_solution_total = 0
 
-    def evaluate(self, x):
+    def _evaluate(self, x):
+        # t = time.time()
         macro_pos = self._genotype2phenotype(x)
         if self.args.eval_gp_hpwl:
             hpwl = self.gp_evaluator.evaluate(macro_pos=macro_pos)
         else:
             hpwl = comp_res(macro_pos=macro_pos, placedb=self.placedb)
         overlap_rate = comp_overlap(macro_pos=macro_pos, placedb=self.placedb)
+        # t_eval_solution = time.time() - t
         return hpwl, overlap_rate, macro_pos
+    
+    
+    def evaluate(self, x):
+        t = time.time()
+        if self.args.n_cpu_max > 1 and \
+            not self.args.eval_gp_hpwl and \
+            self.args.placer != "dmp":
+            futures = [evaluate_placer.remote(self, x0) for x0 in x]
+            results = ray.get(futures)
+        else:
+            results = [self._evaluate(x0) for x0 in x]
+        t_eval_solution = time.time() - t
+        
+        hpwl_all = []
+        overlap_rate_all = []
+        macro_pos_all = []
+        for hpwl, overlap_rate, macro_pos in results:
+            hpwl_all.append(hpwl)
+            overlap_rate_all.append(overlap_rate)
+            macro_pos_all.append(macro_pos)
+        self.t_eval_solution_total += t_eval_solution
+        return hpwl_all, overlap_rate_all, macro_pos_all
 
     def save_placement(self, macro_pos, n_eval, hpwl):
         logging.info("Placer saving placement")
@@ -79,8 +123,7 @@ class BasicPlacer:
         self.placement_saving_lst.append(file_name)
         assert len(self.placement_saving_lst) <= self.n_max_saving_placement
 
-    
-    def plot(self, macro_pos, n_eval, hpwl):
+    def plot(self, macro_pos:dict, n_eval:int, hpwl:float):
         logging.info("Placer ploting figure")
         scale_hpwl, n_power = get_n_power(hpwl)
 
@@ -92,34 +135,44 @@ class BasicPlacer:
         if self.args.eval_gp_hpwl:
             self.gp_evaluator.plot(hpwl=hpwl, figure_name=file_name)
         else:
-            fig = plt.figure()
-            ax = fig.add_subplot(111, aspect="auto")
-            ax.axes.xaxis.set_visible(False)
-            ax.axes.yaxis.set_visible(False)
-            for macro in macro_pos:
-                pos_x, pos_y = macro_pos[macro]
-                size_x, size_y = self.placedb.node_info[macro]["size_x"], self.placedb.node_info[macro]["size_y"]
-
-                pos_x = pos_x / self.placedb.canvas_ux
-                pos_y = pos_y / self.placedb.canvas_uy
-                size_x = size_x / self.placedb.canvas_ux
-                size_y = size_y / self.placedb.canvas_uy
-                ax.add_patch(
-                    patches.Rectangle(
-                        (pos_x, pos_y),
-                        size_x, size_y,
-                        linewidth=1, edgecolor='k'
-                    )
-                )
-
-            fig.savefig(file_name, dpi=90, bbox_inches='tight')
-            plt.close()
+            self._plot_macro(macro_pos, file_name)
 
         if delete_file_name is not None:
             os.remove(delete_file_name)
         self.figure_saving_lst.append(file_name)
         assert len(self.figure_saving_lst) <= self.n_max_saving_placement
         
+    def plot_fig(self, figure_name:str, macro_pos:dict=None, hpwl:float=None):
+        if self.args.eval_gp_hpwl and hpwl is not None:
+            self.gp_evaluator.plot(hpwl=hpwl, figure_name=figure_name)
+        elif macro_pos is not None:
+            self._plot_macro(macro_pos, figure_name)
+        else:
+            raise ValueError("macro_pos(for mp plot) or hpwl(for gp plot) must be provided")
+
+    def _plot_macro(self, macro_pos, file_name):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, aspect="auto")
+        ax.axes.xaxis.set_visible(False)
+        ax.axes.yaxis.set_visible(False)
+        for macro in macro_pos:
+            pos_x, pos_y = macro_pos[macro]
+            size_x, size_y = self.placedb.node_info[macro]["size_x"], self.placedb.node_info[macro]["size_y"]
+
+            pos_x = pos_x / self.placedb.canvas_ux
+            pos_y = pos_y / self.placedb.canvas_uy
+            size_x = size_x / self.placedb.canvas_ux
+            size_y = size_y / self.placedb.canvas_uy
+            ax.add_patch(
+                patches.Rectangle(
+                    (pos_x, pos_y),
+                    size_x, size_y,
+                    linewidth=1, edgecolor='k'
+                )
+            )
+
+        fig.savefig(file_name, dpi=90, bbox_inches='tight')
+        plt.close()
         
     def save_metrics(
             self, 
@@ -130,11 +183,23 @@ class BasicPlacer:
             pop_std_hpwl,
             overlap_rate,
             t_each_eval=0,
-            avg_t_each_eval=0
+            avg_t_each_eval=0,
+            avg_t_eval_solution=0,
             ):
         with open(self.metrics_file, 'a', newline='') as f:
             writer = csv.writer(f)
-            content = [n_eval, his_best_hpwl, pop_best_hpwl, pop_avg_hpwl, pop_std_hpwl, overlap_rate, t_each_eval, avg_t_each_eval]
+            content = [
+                n_eval, 
+                his_best_hpwl, 
+                pop_best_hpwl, 
+                pop_avg_hpwl, 
+                pop_std_hpwl, 
+                overlap_rate, 
+                t_each_eval, 
+                avg_t_each_eval,
+                avg_t_each_eval - avg_t_eval_solution,
+                avg_t_eval_solution
+            ]
             writer.writerow(content)
 
     def _save_checkpoint(self, checkpoint_path):

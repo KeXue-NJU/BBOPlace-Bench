@@ -76,7 +76,10 @@ xl, xu = evaluator.xl, evaluator.xu
 
 # Evaluate solutions
 x = np.random.uniform(low=xl, high=xu, size=(128, dim))
-hpwl = evaluator.evaluate(x)
+hpwl, overlap_rate, macro_pos_lst = evaluator.evaluate(x)
+
+# Plot placement figure
+evaluator.plot(fig_name="placement.png", macro_pos=macro_pos_lst[0], hpwl=hpwl[0])
 ```
 
 ### Available Benchmarks

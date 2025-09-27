@@ -80,6 +80,7 @@ class VanillaEA(BasicAlgo):
         self.t_total += t_eval
         t_each_eval = t_eval / self.args.n_population
         avg_t_each_eval = self.t_total / (self.n_eval + self.args.n_population * 2)
+        avg_t_eval_solution = self.placer.t_eval_solution_total / (self.n_eval + self.args.n_population * 2)
         self.t = t_temp
 
         macro_pos_all = algo.pop.get("macro_pos")
@@ -91,7 +92,8 @@ class VanillaEA(BasicAlgo):
                                  overlap_rate=overlap_rate,
                                  macro_pos_all=macro_pos_all,
                                  t_each_eval=t_each_eval, 
-                                 avg_t_each_eval=avg_t_each_eval)
+                                 avg_t_each_eval=avg_t_each_eval,
+                                 avg_t_eval_solution=avg_t_eval_solution)
         else:
             self.start_from_checkpoint = False
 

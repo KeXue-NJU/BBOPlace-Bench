@@ -17,6 +17,6 @@ python ../src/main.py \
     --max_eval_time=72 \
     --n_macro=1000000 \
     --sampling=random \
-    --mutation=shuffle \
-    --crossover=uniform
+    --mutation=shuffle  \
+    --error_redirect=False
 done

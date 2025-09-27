@@ -17,6 +17,7 @@ from botorch.optim import optimize_acqf
 from botorch.models import FixedNoiseGP
 from botorch.models import SingleTaskGP
 from botorch.acquisition import UpperConfidenceBound
+from botorch.utils.transforms import normalize, unnormalize
 try:
     from botorch import fit_gpytorch_mll
 except:
@@ -28,8 +29,8 @@ from utils.constant import INF
 from utils.data_utils import FeatureCache 
 from utils.random_parser import set_state
 from problem.acqf_problem import GridGuideAcquisitionFuncProblem, SequencePairAcquisitionFuncProblem
-from algorithm.ea.operators import REGISTRY as OPS_REGISTRY
-from algorithm.ea.pymoo_problem import (
+from operators import REGISTRY as OPS_REGISTRY
+from problem.pymoo_problem import (
     GridGuidePlacementProblem, 
     SequencePairPlacementProblem,
     HyperparameterPlacementProblem
@@ -79,9 +80,7 @@ class IntegerRandomSampling(FloatRandomSampling):
         X = super()._do(problem, n_samples, **kwargs)
         return np.around(X).astype(int)
 
-@ray.remote(num_cpus=1, num_gpus=1)
-def evaluate_placer(placer, x0):
-    return placer.evaluate(x0)
+from placer.basic_placer import evaluate_placer
 
 class BO(BasicAlgo):
     def __init__(self, args, placer, logger):
@@ -103,8 +102,17 @@ class BO(BasicAlgo):
                 n_grid_y=args.n_grid_y,
                 placer=placer
             )
-            self.kernel_type = "tc"
-            self.acqf_type = 'LCB_lower_bound'
+            self.kernel_type = "default"
+            self.acqf_type = "EI"
+            
+            self.dim = self.n_var * 2
+            bounds_ = np.zeros((2, self.dim))
+            xu = np.array(
+                ([args.n_grid_x - 1] * self.n_var) + \
+                    ([args.n_grid_y - 1] * self.n_var)
+            )
+            bounds_[1] = xu
+            self.bounds = torch.from_numpy(bounds_).to(**tkwargs)
             
         elif args.placer == "sp":
             self.problem = SequencePairPlacementProblem(
@@ -127,7 +135,7 @@ class BO(BasicAlgo):
                 [entry[ent_i] for entry in self.params_space.values()]
             bounds_ = np.ones((2, self.dim))
             bounds_[0] = np.array(extract(0))
-            bounds_[1] = np.array(extract(0))
+            bounds_[1] = np.array(extract(1))
             self.bounds = torch.from_numpy(bounds_).to(**tkwargs)
             
         else:
@@ -141,19 +149,15 @@ class BO(BasicAlgo):
     def _init_model(self, train_X: Tensor, train_Y: Tensor, state_dict=None):
         assert not torch.isnan(train_X).any() and not torch.isinf(train_X).any()
         assert not torch.isnan(train_Y).any() and not torch.isinf(train_Y).any()
-        NOISE_SE = 0.5
-        train_yvar = torch.tensor(NOISE_SE**2).to(**tkwargs)
         
-        Y_var = torch.full_like(train_Y, 0.01).to(**tkwargs)
         kernel = self._get_kernel(self.kernel_type)
-        model = FixedNoiseGP(train_X, train_Y,
-                             Y_var,
+        model = SingleTaskGP(train_X, train_Y,
                              covar_module=kernel).to(**tkwargs)
-        likelihood = gpytorch.likelihoods.GaussianLikelihood().to(**tkwargs)
-        mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model).to(**tkwargs)
+        mll = gpytorch.mlls.ExactMarginalLogLikelihood(model.likelihood, model).to(**tkwargs)
         if state_dict is not None:
             model.load_state_dict(state_dict)
-        fit_gpytorch_mll(mll)
+        with gpytorch.settings.cholesky_jitter(1e-4):
+            fit_gpytorch_mll(mll)
         return model
     
     def _init_samples(self, n_samples):  
@@ -184,7 +188,7 @@ class BO(BasicAlgo):
     def _get_acqf(self, acqf_type, model, train_X: Tensor, train_Y: Tensor):
         if acqf_type == 'EI':
             AF = ExpectedImprovement(
-                model, best_f=train_Y.max().item()).to(**tkwargs)
+                model, best_f=train_Y.min().item(), maximize=False).to(**tkwargs)
             
         elif acqf_type == 'LCB_lower_bound':
             def LCB_lower_bound(X: Tensor):
@@ -206,50 +210,15 @@ class BO(BasicAlgo):
         
         if is_torch_tensor:
             if self.placer_type != "dmp":
-                x = x.detach().cpu().numpy().astype(np.int32)
+                x = np.round(x.detach().cpu().numpy()).astype(np.int32)
             else:
                 x = x.detach().cpu().numpy()
         
-        y = []
-        overlap_rate = []
-        macro_pos_all = []
-        
-        if ray.available_resources().get("CPU", 0) > 1:
-            futures = [evaluate_placer.remote(self.placer, x0) for x0 in x]
-            results = ray.get(futures)
-        else:
-            results = [self.placer.evaluate(x0) for x0 in x]
-        
-        for hpwl, o_r, macro_pos in results:
-            y.append(hpwl)
-            overlap_rate.append(o_r)
-            macro_pos_all.append(macro_pos)
-        
+        y, overlap_rate, macro_pos_all = self.placer.evaluate(x)
         return np.array(y), np.array(overlap_rate), (macro_pos_all if return_macro_pos else None)
         
     def _optimize_acqf_and_get_observations(self, acqf, num_samples=1):
-        if self.placer_type == "grid_guide":
-            acqf_problem = GridGuideAcquisitionFuncProblem(
-                self.args.n_grid_x, self.args.n_grid_y,
-                self.placer.placedb.node_cnt, acqf)
-            algo = GA(
-                pop_size=100,
-                sampling=IntegerRandomSampling(),
-                mutation=OPS_REGISTRY["mutation"][self.placer_type][self.args.mutation.lower()](self.args),
-                crossover=OPS_REGISTRY["crossover"][self.placer_type][self.args.crossover.lower()](self.args),
-                eliminate_duplicates=True
-            )
-
-            res = minimize(
-                problem=acqf_problem,
-                algorithm=algo,
-                termination=("n_gen", self.args.opt_acqf_iter),
-                verbose=False
-            )
-            
-            proposed_X = res.pop.get("X")
-        
-        elif self.placer_type == "sp":
+        if self.placer_type == "sp":
             acqf_problem = SequencePairAcquisitionFuncProblem(
                 node_cnt=self.placer.placedb.node_cnt, acqf=acqf
             )
@@ -261,25 +230,29 @@ class BO(BasicAlgo):
                 eliminate_duplicates=True
             )
 
-            res = minimize(
-                problem=acqf_problem,
-                algorithm=algo,
-                termination=("n_gen", self.args.opt_acqf_iter),
-                verbose=False
-            )
+            with gpytorch.settings.cholesky_jitter(1e-4):
+                res = minimize(
+                    problem=acqf_problem,
+                    algorithm=algo,
+                    termination=("n_gen", self.args.opt_acqf_iter),
+                    verbose=False
+                )
             
             proposed_X = res.pop.get("X")
             
-        elif self.placer_type == "dmp":
-            proposed_X, _ = optimize_acqf(
-                acq_function=acqf,
-                bounds=self.bounds,
-                q=num_samples,
-                num_restarts=10,
-                raw_samples=512,
-                options={"batch_limit": 5, "maxiter": 200}
-            )
-            proposed_X = proposed_X.detach().cpu().numpy()
+        elif self.placer_type == "dmp" or self.placer_type == "grid_guide":
+            normalized_bounds = torch.stack([torch.zeros(self.dim), torch.ones(self.dim)]).to(**tkwargs)
+            with gpytorch.settings.cholesky_jitter(1e-4):
+                proposed_X, _ = optimize_acqf(
+                    acq_function=acqf,
+                    bounds=normalized_bounds,
+                    q=num_samples,
+                    num_restarts=10,
+                    raw_samples=512,
+                    options={"batch_limit": 5, "maxiter": 200},
+                    fixed_features=None,
+                )
+            proposed_X = unnormalize(proposed_X.detach(), self.bounds).cpu().numpy()
             
         else:
             raise NotImplementedError
@@ -295,13 +268,13 @@ class BO(BasicAlgo):
         self.t_total += t_eval
         t_each_eval = t_eval / num_samples
         avg_t_each_eval = self.t_total / (self.n_eval + self.n_init)
+        avg_t_eval_solution = self.placer.t_eval_solution_total / (self.n_eval + self.n_init)
         self.t = t_temp
         
-        self._record_results(hpwl=hpwl, 
-                             overlap_rate=overlap_rate,
-                             macro_pos_all=macro_pos_all,
+        self._record_results(hpwl, overlap_rate, macro_pos_all,
                              t_each_eval=t_each_eval,
-                             avg_t_each_eval=avg_t_each_eval)
+                             avg_t_each_eval=avg_t_each_eval,
+                             avg_t_eval_solution=avg_t_eval_solution)
         
         return torch.from_numpy(proposed_X).to(**tkwargs), \
             torch.from_numpy(hpwl).to(**tkwargs)
@@ -310,6 +283,7 @@ class BO(BasicAlgo):
         self.t = time.time() 
         
         checkpoint = self._load_checkpoint()
+
         if checkpoint is not None:
             self.model_state_dict = checkpoint["model_state_dict"]
             self.train_X = checkpoint["train_X"].to(**tkwargs)
@@ -317,38 +291,62 @@ class BO(BasicAlgo):
         else:
             self.train_X, self.train_Y = self._init_samples(n_samples=self.n_init)
 
-        
         if len(self.train_X) < self.n_init:
-            extended_X = self._init_samples(self.n_init - len(self.train_X))
-            self.train_X = torch.cat(self.train_X, extended_X)
+            extended_X, extended_Y = self._init_samples(self.n_init - len(self.train_X))
+            self.train_X = torch.cat((self.train_X, extended_X))
+            self.train_Y = torch.cat((self.train_Y, extended_Y.reshape(-1, 1)))
               
         train_Y_tensor = deepcopy(self.train_Y)
         train_Y_tensor = (train_Y_tensor - train_Y_tensor.mean()) / (train_Y_tensor.std() + 1e-6)
-        self.model = self._init_model(self.train_X, train_Y_tensor,
+
+        train_X_tensor = self.train_X
+        if self.placer_type == "dmp" or self.placer_type == "grid_guide":
+            train_X_tensor = normalize(self.train_X, self.bounds)
+
+        self.model = self._init_model(train_X_tensor, train_Y_tensor,
                                       state_dict=self.model_state_dict if hasattr(self, "model_state_dict") \
                                           else None)
         
         # calculate how many batch
-        n_batch = math.ceil((self.args.max_evals + 1 - self.n_init * (self.args.n_sampling_repeat-1) - \
+        n_batch = math.ceil((self.args.max_evals - self.n_init * (self.args.n_sampling_repeat-1) - \
             len(self.train_X)) / self.batch_size)
         
         for i in range(1, n_batch + 1):
             
             t0 = time.monotonic()
             
-            acqf = self._get_acqf(self.acqf_type, self.model, self.train_X, train_Y_tensor)
+            acqf = self._get_acqf(self.acqf_type, self.model, train_X_tensor, train_Y_tensor)
             proposed_X, proposed_Y = self._optimize_acqf_and_get_observations(acqf, self.batch_size)
             
             assert len(proposed_X) == self.batch_size
             
             self.train_X = torch.cat((self.train_X, proposed_X))
             self.train_Y = torch.cat((self.train_Y, proposed_Y.reshape(-1, 1)))
+
+            # De-duplicate training data for grid_guide placer
+            if self.placer_type == "grid_guide":
+                # Convert to integer coordinates to identify duplicates
+                # This is necessary because continuous outputs from acqf optimization
+                # can round to the same integer grid positions, causing duplicates.
+                train_X_int = torch.round(self.train_X).cpu().numpy()
+                _, unique_indices = np.unique(train_X_int, axis=0, return_index=True)
+                
+                if len(unique_indices) < self.train_X.shape[0]:
+                    self.logger.info(f"Duplicate points found. Reducing dataset from {self.train_X.shape[0]} to {len(unique_indices)}")
+                    # Keep only unique points
+                    self.train_X = self.train_X[unique_indices]
+                    self.train_Y = self.train_Y[unique_indices]
             
             self._save_checkpoint()
             
             train_Y_tensor = deepcopy(self.train_Y)
             train_Y_tensor = (train_Y_tensor - train_Y_tensor.mean()) / (train_Y_tensor.std() + 1e-6)
-            self.model = self._init_model(self.train_X, train_Y_tensor, self.model.state_dict())
+            
+            train_X_tensor = self.train_X
+            if self.placer_type == "dmp" or self.placer_type == "grid_guide":
+                train_X_tensor = normalize(self.train_X, self.bounds)
+            
+            self.model = self._init_model(train_X_tensor, train_Y_tensor, self.model.state_dict())
             
             t1 = time.monotonic()
             
