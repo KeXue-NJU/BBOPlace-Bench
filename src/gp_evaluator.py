@@ -3,6 +3,13 @@ import copy
 import signal
 import numpy as np
 import torch as th
+import socket
+import json
+import subprocess
+import time
+import select
+
+from typing import overload
 
 from utils.read_benchmark.read_aux import write_pl
 from utils.read_benchmark.read_def import write_def
@@ -21,8 +28,11 @@ from PIL import Image
 
 class GPEvaluator:
     DMP_CONFIG_PATH = "config/algorithm/dmp_config"
-    DMP_TEMP_BENCHMARK_PATH = "benchmarks/.tmp"
-
+    DMP_TEMP_BENCHMARK_PATH = f"benchmarks/.tmp/GPEvaluator"
+    SOCK_PATH = os.path.join(
+        "sock_path",
+        "dmp_worker_GPEvaluator_%(unique_token)s.sock"
+    )
     AUX_FILES = [
         "%(benchmark)s.aux",
         "%(benchmark)s.scl",
@@ -60,32 +70,165 @@ class GPEvaluator:
 
         self.n_eval = 0
 
+        self._worker = None
+        self._sock = None
+        self._sock_path = None
+        self._worker_inited = False
+        self.worker_path = os.path.join(self.args.SOURCE_DIR, "placer/dmp_worker.py")
+        self.timeout_seconds = args.timeout_seconds
+        self._sock_path = os.path.join(self.args.ROOT_DIR, GPEvaluator.SOCK_PATH % self.args.__dict__)
+        os.makedirs(os.path.dirname(self._sock_path), exist_ok=True)
+
+    def _cleanup_worker(self):
+        if self._sock is not None:
+            self._sock.close()
+            self._sock = None
+        if self._worker is not None:
+            self._worker.kill()
+            self._worker = None
+        if self._sock_path is not None and os.path.exists(self._sock_path):
+            os.unlink(self._sock_path)
+        self._worker_inited = False
+
+    def _ensure_worker(self):
+        if self._worker is not None and \
+           self._worker.poll() is None and \
+           self._sock is not None:
+            return True
+        
+        if os.path.exists(self._sock_path):
+            os.unlink(self._sock_path)
+        
+        # init worker
+        try:
+            self._worker = subprocess.Popen(
+                ["python3", self.worker_path, "--sock", self._sock_path],
+                stdin=None,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=False,
+                cwd=self.args.ROOT_DIR,
+            )
+        except Exception:
+            self._cleanup_worker()
+            return False
+
+        # init sock
+        self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        deadline = time.time() + min(10, self.timeout_seconds)
+        connected = False
+        while time.time() < deadline:
+            try:
+                self._sock.connect(self._sock_path)
+                connected = True
+                break
+            except Exception:
+                time.sleep(0.05)
+        if not connected:
+            self._cleanup_worker()
+            return False
+        self._sock.settimeout(self.timeout_seconds)
+
+        # init worker
+        init_msg = json.dumps({
+            "cmd": "init",
+            "args": {
+                "ROOT_DIR": self.args.ROOT_DIR,
+                "temp_subdir": "GPEvaluator",
+                "name": self.args.name,
+                "benchmark": self.args.benchmark,
+                "benchmark_type": self.args.benchmark_type,
+                "unique_token": self.args.unique_token,
+                "seed": self.args.seed,
+            },
+            "canvas_width": self.placedb.canvas_width,
+            "canvas_height": self.placedb.canvas_height,
+        }) + "\n"
+        try:
+            self._sock.sendall(init_msg.encode())
+            data = b""
+            while True:
+                chunk = self._sock.recv(65536)
+                if not chunk:
+                    break
+                data += chunk
+                if b"\n" in chunk:
+                    break
+            line = data.decode(errors="ignore").strip()
+            ack_obj = json.loads(line) if line else {"ok": False}
+        except:
+            self._cleanup_worker()
+            return False
+        if not ack_obj.get("ok"):
+            self._cleanup_worker()
+            return False
+        self._worker_inited = True
+        return True
 
     def evaluate(self, macro_pos):
         if len(macro_pos) == 0:
             return INF
-        
+
         if self.dmp_placedb is None:
             self._init_dmp(macro_pos=macro_pos)
 
-        original_abort_signal_handler = signal.signal(signal.SIGABRT, abort_signal_handler)
-        try:
-            self._update_dmp_placedb(macro_pos=macro_pos)
-            self._update_dmp_placer()
-
-            gp_hpwl = self.placer(self.dmp_params, self.dmp_placedb)[-1].hpwl.cpu().item()
-            
-            self.saving_data["placement"][gp_hpwl] = (self.dmp_placedb.node_x.copy(),
-                                                        self.dmp_placedb.node_y.copy())
-            self.saving_data["figure"][gp_hpwl] = copy.copy(self.placer.pos[0].data.clone().cpu().numpy())
-        except KeyboardInterrupt:
-            exit(0)
-        except:
+        if not self._ensure_worker():
             return INF
-        finally:
-            signal.signal(signal.SIGABRT, original_abort_signal_handler)
+        
+        # eval request
+        req = {
+                "cmd": "eval_hpwl", 
+                "macro_pos": macro_pos,
+            }
+        deadline = time.time() + self.timeout_seconds
 
-        return gp_hpwl
+        try:
+            self._sock.sendall((json.dumps(req) + "\n").encode())
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                self._cleanup_worker()
+                return {}
+            r, _, _ = select.select([self._sock], [], [], remaining)
+            if not r:
+                self._cleanup_worker()
+                return {}
+
+            data = b""
+            while True:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    self._cleanup_worker()
+                    return {}
+
+                chunk = self._sock.recv(65536)
+                if not chunk:
+                    break
+                data += chunk
+                if b"\n" in chunk:
+                    break
+            text = data.decode(errors="ignore")
+            lines = [ln for ln in text.splitlines() if ln.strip()]
+            last_line = lines[-1] if lines else ""
+            out = json.loads(last_line) if last_line else {"ok": False}
+            if out.get("ok") and out.get("hpwl") is not None:
+                hpwl = out["hpwl"]
+                node_x = out.get("node_x")
+                node_y = out.get("node_y")
+                pos = out.get("pos")
+                if node_x is not None and node_y is not None:
+                    self.saving_data["placement"][hpwl] = (np.array(node_x, dtype=self.node_x_dtype),
+                                                            np.array(node_y, dtype=self.node_y_dtype))
+                if pos is not None:
+                    self.saving_data["figure"][hpwl] = np.array(pos, dtype=self.pos_dtype)
+                return hpwl
+            return INF
+        except KeyboardInterrupt:
+            self._cleanup_worker()
+            exit(0)
+        except Exception:
+            self._cleanup_worker()
+            return INF
+
     
     def _init_dmp(self, macro_pos):
         self._prepare_placement_file(macro_pos=macro_pos)
@@ -97,6 +240,10 @@ class GPEvaluator:
         modified_names = np.char.split(self.dmp_node_names[mask], '.').tolist()
         self.dmp_node_names[mask] = [name[0] for name in modified_names]
         self.placer = NonLinearPlace(self.dmp_params, self.dmp_placedb, timer=None)
+
+        self.node_x_dtype = self.dmp_placedb.node_x.dtype
+        self.node_y_dtype = self.dmp_placedb.node_y.dtype
+        self.pos_dtype = self.placer.pos[0].data.clone().cpu().numpy().dtype
     
     
     def _load_dmp_config(self):
@@ -229,7 +376,7 @@ class GPEvaluator:
     def __deepcopy__(self, memo=None):
         return self
     
-    def plot(self, hpwl, figure_name):
+    def plot(self, hpwl:float, figure_name:str):
         pos = self.saving_data["figure"][hpwl]
         self.placer.plot(
             self.dmp_params,

@@ -29,3 +29,5 @@ new_script
 /thirdparty
 !/thirdparty/DREAMPlace_source
 script
+sheets_bk
+sock_path

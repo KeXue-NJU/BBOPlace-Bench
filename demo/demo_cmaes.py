@@ -6,13 +6,13 @@ import random
 import numpy as np
 import cma
 
-from src.evaluator import Evaluator
-from config.benchmark import ROOT_DIR, BENCHMARK_DIR
-
 # Set path environment variable
 base_path = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), "..")
 sys.path.append(base_path)
+
+from src.evaluator import Evaluator
+from config.benchmark import ROOT_DIR, BENCHMARK_DIR
 
 THIRDPARTY_DIR = os.path.join(ROOT_DIR, "thirdparty")
 SOURCE_DIR = os.path.join(ROOT_DIR, "src")
@@ -55,7 +55,7 @@ cmaes = cma.CMAEvolutionStrategy(
 # Run optimization
 while not cmaes.stop():
     solutions = cmaes.ask()
-    fitness_values = evaluator.evaluate(solutions)
+    fitness_values, _, macro_pos_lst = evaluator.evaluate(solutions)
     cmaes.tell(solutions, fitness_values)
     
     with open("results/demo_cmaes.txt", "a") as f:

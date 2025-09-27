@@ -5,6 +5,7 @@ from utils.read_benchmark.read_aux import write_pl
 from utils.read_benchmark.read_def import write_def
 from utils.constant import get_n_power
 
+from typing import overload
 
 import os
 import csv
@@ -122,8 +123,7 @@ class BasicPlacer:
         self.placement_saving_lst.append(file_name)
         assert len(self.placement_saving_lst) <= self.n_max_saving_placement
 
-    
-    def plot(self, macro_pos, n_eval, hpwl):
+    def plot(self, macro_pos:dict, n_eval:int, hpwl:float):
         logging.info("Placer ploting figure")
         scale_hpwl, n_power = get_n_power(hpwl)
 
@@ -135,34 +135,44 @@ class BasicPlacer:
         if self.args.eval_gp_hpwl:
             self.gp_evaluator.plot(hpwl=hpwl, figure_name=file_name)
         else:
-            fig = plt.figure()
-            ax = fig.add_subplot(111, aspect="auto")
-            ax.axes.xaxis.set_visible(False)
-            ax.axes.yaxis.set_visible(False)
-            for macro in macro_pos:
-                pos_x, pos_y = macro_pos[macro]
-                size_x, size_y = self.placedb.node_info[macro]["size_x"], self.placedb.node_info[macro]["size_y"]
-
-                pos_x = pos_x / self.placedb.canvas_ux
-                pos_y = pos_y / self.placedb.canvas_uy
-                size_x = size_x / self.placedb.canvas_ux
-                size_y = size_y / self.placedb.canvas_uy
-                ax.add_patch(
-                    patches.Rectangle(
-                        (pos_x, pos_y),
-                        size_x, size_y,
-                        linewidth=1, edgecolor='k'
-                    )
-                )
-
-            fig.savefig(file_name, dpi=90, bbox_inches='tight')
-            plt.close()
+            self._plot_macro(macro_pos, file_name)
 
         if delete_file_name is not None:
             os.remove(delete_file_name)
         self.figure_saving_lst.append(file_name)
         assert len(self.figure_saving_lst) <= self.n_max_saving_placement
         
+    def plot_fig(self, figure_name:str, macro_pos:dict=None, hpwl:float=None):
+        if self.args.eval_gp_hpwl and hpwl is not None:
+            self.gp_evaluator.plot(hpwl=hpwl, figure_name=figure_name)
+        elif macro_pos is not None:
+            self._plot_macro(macro_pos, figure_name)
+        else:
+            raise ValueError("macro_pos(for mp plot) or hpwl(for gp plot) must be provided")
+
+    def _plot_macro(self, macro_pos, file_name):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, aspect="auto")
+        ax.axes.xaxis.set_visible(False)
+        ax.axes.yaxis.set_visible(False)
+        for macro in macro_pos:
+            pos_x, pos_y = macro_pos[macro]
+            size_x, size_y = self.placedb.node_info[macro]["size_x"], self.placedb.node_info[macro]["size_y"]
+
+            pos_x = pos_x / self.placedb.canvas_ux
+            pos_y = pos_y / self.placedb.canvas_uy
+            size_x = size_x / self.placedb.canvas_ux
+            size_y = size_y / self.placedb.canvas_uy
+            ax.add_patch(
+                patches.Rectangle(
+                    (pos_x, pos_y),
+                    size_x, size_y,
+                    linewidth=1, edgecolor='k'
+                )
+            )
+
+        fig.savefig(file_name, dpi=90, bbox_inches='tight')
+        plt.close()
         
     def save_metrics(
             self, 
