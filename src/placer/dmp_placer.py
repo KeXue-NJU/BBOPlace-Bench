@@ -35,29 +35,13 @@ params_space = {
 ###################################################################################
 
 # categorical
-    # "GP_num_bins_x": (0, 2, sel_func([1024, 2048])),
-    # "GP_num_bins_y": (0, 2, sel_func([1024, 2048])),
-    # "GP_optimizer": (0, 2, sel_func(["adam", "nesterov"])),
-    # "GP_wirelength": (0, 2, sel_func(["weighted_average", "logsumexp"])),
-    # "GP_iteration": (0, 1, sel_func([1000])),
-    "GP_num_bins_x": (0, 4, sel_func([256, 512, 1024, 2048])),
-    "GP_num_bins_y": (0, 4, sel_func([256, 512, 1024, 2048])),
+    "GP_num_bins_x": (0, 2, sel_func([1024, 2048])),
+    "GP_num_bins_y": (0, 2, sel_func([1024, 2048])),
     "GP_optimizer": (0, 2, sel_func(["adam", "nesterov"])),
     "GP_wirelength": (0, 2, sel_func(["weighted_average", "logsumexp"])),
-    "GP_iteration": (0, 1, sel_func([9999])),
+    "GP_iteration": (0, 1, sel_func([1000])),
 
 # uniform
-    # "GP_Llambda_density_weight_iteration": (1, 3, round_func),
-    # "GP_Lsub_iteration": (1, 3, round_func),
-    # "GP_learning_rate": (0.001, 0.01, orig_func),
-    # "GP_learning_rate_decay": (0.99, 1.0, orig_func),
-    # "RePlAce_LOWER_PCOF": (0.9, 0.99, orig_func),
-    # "RePlAce_UPPER_PCOF": (1.02, 1.15, orig_func),
-    # "RePlAce_ref_hpwl": (150000, 550000, round_func),
-    # "density_weight": (1e-06, 1e-04, orig_func),
-    # "gamma": (1, 4, orig_func),
-    # "stop_overflow": (0.06, 0.1, orig_func),
-    # "target_density": (0.8, 1.2, orig_func),
     "GP_Llambda_density_weight_iteration": (1, 3, round_func),
     "GP_Lsub_iteration": (1, 3, round_func),
     "GP_learning_rate": (0.001, 0.01, orig_func),
@@ -65,10 +49,10 @@ params_space = {
     "RePlAce_LOWER_PCOF": (0.9, 0.99, orig_func),
     "RePlAce_UPPER_PCOF": (1.02, 1.15, orig_func),
     "RePlAce_ref_hpwl": (150000, 550000, round_func),
-    "density_weight": (1e-06, 1.0, orig_func),
-    "gamma": (0.1, 4, orig_func),
+    "density_weight": (1e-06, 1e-04, orig_func),
+    "gamma": (1, 4, orig_func),
     "stop_overflow": (0.06, 0.1, orig_func),
-    "target_density": (0.5, 1.0, orig_func),
+    "target_density": (0.8, 1.2, orig_func),
 
 }
 

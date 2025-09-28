@@ -141,14 +141,6 @@ class BasicPlacer:
             os.remove(delete_file_name)
         self.figure_saving_lst.append(file_name)
         assert len(self.figure_saving_lst) <= self.n_max_saving_placement
-        
-    def plot_fig(self, figure_name:str, macro_pos:dict=None, hpwl:float=None):
-        if self.args.eval_gp_hpwl and hpwl is not None:
-            self.gp_evaluator.plot(hpwl=hpwl, figure_name=figure_name)
-        elif macro_pos is not None:
-            self._plot_macro(macro_pos, figure_name)
-        else:
-            raise ValueError("macro_pos(for mp plot) or hpwl(for gp plot) must be provided")
 
     def _plot_macro(self, macro_pos, file_name):
         fig = plt.figure()
