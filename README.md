@@ -11,7 +11,7 @@ This repository contains the Python code for BBOPlace-Bench, a benchmarking cont
 
 ### Compile DREAMPlace
 Please first install docker and [docker cuda toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). Then, please download the docker image from [Baidu Netdisk](https://pan.baidu.com/s/1_0-ZDNUAKdqwyIQWXWdoUQ?pwd=3bef) or [DREAMPlace](<https://github.com/limbo018/DREAMPlace>), and compile `thirdparty/DREAMPlace_source` in the docker container following the below commands:
-```
+```bash
 cd thirdparty/DREAMPlace_source
 mkdir build
 cd build
@@ -76,11 +76,15 @@ xl, xu = evaluator.xl, evaluator.xu
 
 # Evaluate solutions
 x = np.random.uniform(low=xl, high=xu, size=(128, dim))
-hpwl, overlap_rate, macro_pos_lst = evaluator.evaluate(x)
-
-# Plot placement figure
-evaluator.plot(fig_name="placement.png", macro_pos=macro_pos_lst[0], hpwl=hpwl[0])
+hpwl = evaluator.evaluate(x)
 ```
+
+### Placement Visualization
+We provide a user friendly interface to visualize the placement outcome in `src/utils/plot.py`:
+```bash
+python plot.py --placement_path=<PLACEMENT FILE> --benchmark=<CORRESPONDING BENCHMAKR> --dataset=<CHOOSE FROM 'ispd2005' AND 'iccad2015'>
+```
+The placement figure will be stored in the same directory of the placement file.
 
 ### Available Benchmarks
 ```python

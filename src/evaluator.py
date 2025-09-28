@@ -136,10 +136,8 @@ class Evaluator:
 
         hpwl, overlap_rate, macro_pos = self.placer.evaluate(x)
 
-        return np.array(hpwl), np.array(overlap_rate), macro_pos
+        return np.array(hpwl)
 
-    def plot(self, figure_name:str, macro_pos:dict=None, hpwl:float=None):
-        self.placer.plot_fig(figure_name=figure_name, macro_pos=macro_pos, hpwl=hpwl)
 
 
         

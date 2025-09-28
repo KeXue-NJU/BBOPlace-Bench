@@ -31,7 +31,7 @@ args.unique_token = unique_token
 class Plot:
     DMP_CONFIG_PATH = "config/algorithm/dmp_config"
     DMP_BENCHMARK_PATH = "benchmarks"
-    DMP_TEMP_BENCHMARK_PATH = os.path.join(DMP_BENCHMARK_PATH, ".tmp")
+    DMP_TEMP_BENCHMARK_PATH = os.path.join(DMP_BENCHMARK_PATH, ".tmp/Plot")
 
     AUX_FILES = [
         "%(benchmark)s.aux",
@@ -51,7 +51,8 @@ class Plot:
     def __init__(self, args) -> None:
         self.args = args
 
-        self.file_name, self.file_format = os.path.basename(args.placement_path).split('.')
+        self.file_name, self.file_format = os.path.splitext(os.path.basename(args.placement_path))
+        self.file_format = self.file_format[1:]
         self.placement_path_dir = os.path.dirname(args.placement_path)
         
         self.dmp_params = DMPParams()
@@ -165,9 +166,13 @@ class Plot:
             "%(benchmark)s_%(unique_token)s" % self.args.__dict__
         )
     
-    def __del__(self):
-        os.system(f"rm -r {self._temp_benchmark_path}")
+    def cleanup(self):
+        if os.path.exists(self._temp_benchmark_path):
+            os.system(f"rm -r {self._temp_benchmark_path}")
 
 if __name__ == "__main__":
     plot = Plot(args=args)
-    plot.plot()
+    try:
+        plot.plot()
+    finally:
+        plot.cleanup()

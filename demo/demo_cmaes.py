@@ -55,7 +55,7 @@ cmaes = cma.CMAEvolutionStrategy(
 # Run optimization
 while not cmaes.stop():
     solutions = cmaes.ask()
-    fitness_values, _, macro_pos_lst = evaluator.evaluate(solutions)
+    fitness_values = evaluator.evaluate(solutions)
     cmaes.tell(solutions, fitness_values)
     
     with open("results/demo_cmaes.txt", "a") as f:
