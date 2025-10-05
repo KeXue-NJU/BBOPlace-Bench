@@ -3,12 +3,12 @@ import os
 import pickle
 from pypop7.optimizers.pso.pso import PSO as PYPSO
 from pypop7.optimizers.core.optimizer import Optimizer
-from problem.pso_problem import GridGuidePlacementProblem, SequencePairPlacementProblem, HyperparameterPlacementProblem
+from problem.pso_problem import MaskGuidedOptimizationPlacementProblem, SequencePairPlacementProblem, HyperparameterPlacementProblem
 import numpy as np 
 import logging
 from utils.debug import * 
 from utils.constant import INF 
-from placer.dmp_placer import params_space
+from placer.hpo_placer import params_space
 from ..basic_algo import BasicAlgo
 
 from operators import REGISTRY as OPS_REGISTRY
@@ -96,8 +96,8 @@ class PSO(BasicAlgo):
         self.node_cnt = placer.placedb.node_cnt
         self.best_hpwl = INF
         
-        if args.placer == "grid_guide":
-            self.problem = GridGuidePlacementProblem(
+        if args.placer == "mgo":
+            self.problem = MaskGuidedOptimizationPlacementProblem(
                 n_grid_x=args.n_grid_x,
                 n_grid_y=args.n_grid_y,
                 placer=placer
@@ -106,7 +106,7 @@ class PSO(BasicAlgo):
             self.problem = SequencePairPlacementProblem(
                 placer=placer
             )
-        elif args.placer == "dmp":
+        elif args.placer == "hpo":
             self.problem = HyperparameterPlacementProblem(
                 params_space=params_space,
                 placer=placer,

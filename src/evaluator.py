@@ -12,7 +12,7 @@ import logging
 import yaml
 import os 
 import ray
-from placer.dmp_placer import params_space
+from placer.hpo_placer import params_space
 THIRDPARTY_DIR = os.path.join(ROOT_DIR, "thirdparty")
 SOURCE_DIR = os.path.join(ROOT_DIR, "src")
 
@@ -77,7 +77,7 @@ class Evaluator:
         
         self.args = args 
         self.placedb = PlaceDB(args=args)
-        self.placer = PLACER_REGISTRY[args.placer.lower()](args=args, placedb=self.placedb)
+        self.placer = PLACER_REGISTRY[args.placer](args=args, placedb=self.placedb)
 
         ray.init(num_cpus=64,
             num_gpus=1,
@@ -89,20 +89,20 @@ class Evaluator:
 
     @property
     def n_dim(self):
-        if self.args.placer in ["grid_guide", "sp"]:
+        if self.args.placer in ["mgo", "sp"]:
             node_cnt = self.placer.placedb.node_cnt 
             return node_cnt * 2
-        elif self.args.placer == "dmp":
+        elif self.args.placer == "hpo":
             return len(params_space.keys())
         else:
             raise ValueError(f"Not supported placer {self.args.placer}")
 
     @property
     def xl(self):
-        if self.args.placer in ["grid_guide", "sp"]:
+        if self.args.placer in ["mgo", "sp"]:
             node_cnt = self.placer.placedb.node_cnt 
             return np.zeros(node_cnt * 2)
-        elif self.args.placer == "dmp":
+        elif self.args.placer == "hpo":
             extract = lambda ent_i: \
                 [entry[ent_i] for entry in params_space.values()]
             return np.array(extract(0))
@@ -111,7 +111,7 @@ class Evaluator:
         
     @property
     def xu(self):
-        if self.args.placer == "grid_guide":
+        if self.args.placer == "mgo":
             node_cnt = self.placer.placedb.node_cnt 
             n_grid_x = self.args.n_grid_x
             n_grid_y = self.args.n_grid_y 
@@ -121,7 +121,7 @@ class Evaluator:
         elif self.args.placer == "sp":
             node_cnt = self.placer.placedb.node_cnt 
             return np.array([node_cnt] * node_cnt * 2)
-        elif self.args.placer == "dmp":
+        elif self.args.placer == "hpo":
             extract = lambda ent_i: \
                 [entry[ent_i] for entry in params_space.values()]
             return np.array(extract(1))

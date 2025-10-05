@@ -56,7 +56,7 @@ params_space = {
 
 }
 
-class DMPPlacer(BasicPlacer):
+class HPOPlacer(BasicPlacer):
     DMP_CONFIG_PATH = "config/algorithm/dmp_config"
     DMP_TEMP_BENCHMARK_PATH = "benchmarks/.tmp/HPO"
     DMP_RESULT_DIR = os.path.join(
@@ -86,7 +86,7 @@ class DMPPlacer(BasicPlacer):
     ]
 
     def __init__(self, args, placedb):
-        super(DMPPlacer, self).__init__(args, placedb)
+        super(HPOPlacer, self).__init__(args, placedb)
         self.args = args
         self.placedb = placedb
 
@@ -102,7 +102,7 @@ class DMPPlacer(BasicPlacer):
 
         self.timeout_seconds = args.timeout_seconds
 
-        self._sock_path = os.path.join(self.args.ROOT_DIR, DMPPlacer.SOCK_PATH % self.args.__dict__)
+        self._sock_path = os.path.join(self.args.ROOT_DIR, HPOPlacer.SOCK_PATH % self.args.__dict__)
         os.makedirs(os.path.dirname(self._sock_path), exist_ok=True)
 
         # self.dmp_pldb = DMPPlaceDB()
@@ -137,7 +137,7 @@ class DMPPlacer(BasicPlacer):
         ROOT_DIR = self.args.ROOT_DIR
         return os.path.join(
             ROOT_DIR,
-            DMPPlacer.DMP_RESULT_DIR % self.args.__dict__
+            HPOPlacer.DMP_RESULT_DIR % self.args.__dict__
         )
 
     @property
@@ -153,7 +153,7 @@ class DMPPlacer(BasicPlacer):
         ROOT_DIR = self.args.ROOT_DIR
         return os.path.join(
             ROOT_DIR,
-            DMPPlacer.DMP_TEMP_BENCHMARK_PATH,
+            HPOPlacer.DMP_TEMP_BENCHMARK_PATH,
             "%(benchmark)s_%(unique_token)s" % self.args.__dict__
         )
 
@@ -175,7 +175,7 @@ class DMPPlacer(BasicPlacer):
 
     def _prepare_benchmark_aux(self):
         os.makedirs(self._temp_benchmark_path, exist_ok=True)
-        self._link_files(DMPPlacer.AUX_FILES)
+        self._link_files(HPOPlacer.AUX_FILES)
         
         # prepare .pl
         pl_file_path = os.path.join(
@@ -199,7 +199,7 @@ class DMPPlacer(BasicPlacer):
 
     def _prepare_benchmark_def(self):
         os.makedirs(self._temp_benchmark_path, exist_ok=True)
-        self._link_files(DMPPlacer.DEF_FILES)
+        self._link_files(HPOPlacer.DEF_FILES)
         
         # prepare .def
         def_file_path = os.path.join(
@@ -242,7 +242,7 @@ class DMPPlacer(BasicPlacer):
         json_file = f"{self.args.benchmark}.json"
         json_path = os.path.join(
             ROOT_DIR,
-            DMPPlacer.DMP_CONFIG_PATH,
+            HPOPlacer.DMP_CONFIG_PATH,
             json_file
         )
         self.params.load(json_path)

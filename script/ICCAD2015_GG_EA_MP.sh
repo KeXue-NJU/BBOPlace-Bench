@@ -1,4 +1,4 @@
-problem_formulation=grid_guide
+problem_formulation=mgo
 algo=ea
 benchmark_prefix=superblue
 
@@ -6,7 +6,7 @@ for i in 1 3 4 5 7 10 16 18
 do
 benchmark=${benchmark_prefix}${i}
 python ../src/main.py \
-    --name=ICCAD2015_GG_EA_MP \
+    --name=ICCAD2015_MGO_EA_MP \
     --benchmark=${benchmark} \
     --placer=${problem_formulation} \
     --algorithm=${algo} \

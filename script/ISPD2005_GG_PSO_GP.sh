@@ -1,10 +1,10 @@
-problem_formulation=grid_guide
+problem_formulation=mgo
 algo=pso
 
 for benchmark in adaptec1 adaptec2 adaptec3 adaptec4 bigblue1 bigblue3
 do
 python ../src/main.py \
-    --name=ISPD2005_GG_PSO_GP \
+    --name=ISPD2005_MGO_PSO_GP \
     --benchmark=${benchmark} \
     --placer=${problem_formulation} \
     --algorithm=${algo} \

@@ -6,10 +6,10 @@ import logging
 from utils.debug import * 
 from utils.constant import INF 
 from utils.random_parser import set_state
-from placer.dmp_placer import params_space
+from placer.hpo_placer import params_space
 from ..basic_algo import BasicAlgo
 from problem.pymoo_problem import (
-    GridGuidePlacementProblem,
+    MaskGuidedOptimizationPlacementProblem,
     SequencePairPlacementProblem,
     HyperparameterPlacementProblem
 )
@@ -25,8 +25,8 @@ class ES(BasicAlgo):
         self.node_cnt = placer.placedb.node_cnt
         self.best_hpwl = INF 
         
-        if args.placer == "grid_guide":
-            self.problem = GridGuidePlacementProblem(
+        if args.placer == "mgo":
+            self.problem = MaskGuidedOptimizationPlacementProblem(
                 n_grid_x=args.n_grid_x,
                 n_grid_y=args.n_grid_y,
                 placer=placer
@@ -42,7 +42,7 @@ class ES(BasicAlgo):
             self.problem = SequencePairPlacementProblem(
                 placer=placer
             )
-        elif args.placer == "dmp":
+        elif args.placer == "hpo":
             extract = lambda ent_i: \
                 [entry[ent_i] for entry in params_space.values()]
             self.xl = np.array(extract(0))
@@ -86,11 +86,11 @@ class ES(BasicAlgo):
             overlap_rate = []
             macro_pos_all = []
             
-            if self.args.placer == "grid_guide":
+            if self.args.placer == "mgo":
                 processed_population = [round_to_discrete(x) for x in population]
             elif self.args.placer == "sp":
                 raise ValueError("CMA-ES is not supported for SP")
-            elif self.args.placer == "dmp":
+            elif self.args.placer == "hpo":
                 processed_population = population
 
             fitness, overlap_rate, macro_pos_all = self.placer.evaluate(processed_population)

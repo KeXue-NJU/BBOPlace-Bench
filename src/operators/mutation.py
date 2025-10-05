@@ -12,7 +12,7 @@ from utils.debug import *
 class DummyMutation(Mutation):
     def __init__(self,args) -> None:
         self.args = args
-        super(GridGuideSwapMutation, self).__init__(prob=1, prob_var=None)
+        super(MaskGuidedOptimizationSwapMutation, self).__init__(prob=1, prob_var=None)
     
     def _do(self, problem, X, **kwargs):
         return X
@@ -21,17 +21,17 @@ class DummyMutation(Mutation):
 #  Grid Guide mutation
 ###################################################################
 
-class GridGuidePMMutation(PM):
+class MaskGuidedOptimizationPMMutation(PM):
     def __init__(self, args):
         super().__init__(
             repair=RoundingRepair(),
             prob=args.pm_prob, eta=args.pm_eta
         )
 
-class GridGuideSwapMutation(Mutation):
+class MaskGuidedOptimizationSwapMutation(Mutation):
     def __init__(self,args) -> None:
         self.args = args
-        super(GridGuideSwapMutation, self).__init__(prob=1, prob_var=None)
+        super(MaskGuidedOptimizationSwapMutation, self).__init__(prob=1, prob_var=None)
 
     def _do(self, problem, X, **kwargs):
         node_cnt = X.shape[1] // 2
@@ -45,10 +45,10 @@ class GridGuideSwapMutation(Mutation):
         
         return X_swapped
 
-class GridGuideShiftMutation(Mutation):
+class MaskGuidedOptimizationShiftMutation(Mutation):
     def __init__(self, args) -> None:
         self.args = args
-        super(GridGuideShiftMutation, self).__init__(prob=1, prob_var=None)
+        super(MaskGuidedOptimizationShiftMutation, self).__init__(prob=1, prob_var=None)
     
     def _do(self, problem, X, **kwargs):
         node_cnt = X.shape[1] // 2
@@ -65,10 +65,10 @@ class GridGuideShiftMutation(Mutation):
                     break
         return X
     
-class GridGuideRandomResettingMutation(Mutation):
+class MaskGuidedOptimizationRandomResettingMutation(Mutation):
     def __init__(self, args) -> None:
         self.args = args
-        super(GridGuideRandomResettingMutation, self).__init__(prob=1, prob_var=None)
+        super(MaskGuidedOptimizationRandomResettingMutation, self).__init__(prob=1, prob_var=None)
 
     def _do(self, problem, X, **kwargs):
         node_cnt = X.shape[1] // 2
@@ -78,10 +78,10 @@ class GridGuideRandomResettingMutation(Mutation):
             X[id][idx + node_cnt] = np.random.randint(low=0, high=self.args.n_grid_y)
         return X
     
-class GridGuideShuffleMutation(Mutation):
+class MaskGuidedOptimizationShuffleMutation(Mutation):
     def __init__(self, args) -> None:
         self.args = args
-        super(GridGuideShuffleMutation, self).__init__(prob=1, prob_var=None)
+        super(MaskGuidedOptimizationShuffleMutation, self).__init__(prob=1, prob_var=None)
     
     def _do(self, problem, X, **kwargs):
         node_cnt = X.shape[1] // 2

@@ -1,4 +1,4 @@
-problem_formulation=dmp
+problem_formulation=hpo
 algo=sa
 benchmark_prefix=superblue
 
