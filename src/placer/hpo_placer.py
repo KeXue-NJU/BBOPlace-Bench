@@ -1,5 +1,5 @@
 from .basic_placer import BasicPlacer
-from utils.constant import EPS
+from src.utils.constant import EPS
 from thirdparty.dreamplace.Params import Params as DMPParams
 from thirdparty.dreamplace.PlaceDB import PlaceDB as DMPPlaceDB
 from thirdparty.dreamplace.NonLinearPlace import NonLinearPlace
@@ -17,8 +17,8 @@ import subprocess
 import multiprocessing as mp
 import select
 
-from utils.signal_handler import abort_signal_handler, timeout_handler, AbortSignalException
-from utils.debug import *
+from src.utils.signal_handler import abort_signal_handler, timeout_handler, AbortSignalException
+from src.utils.debug import *
 
 Numeric = Union[int, float]
 
@@ -104,28 +104,6 @@ class HPOPlacer(BasicPlacer):
 
         self._sock_path = os.path.join(self.args.ROOT_DIR, HPOPlacer.SOCK_PATH % self.args.__dict__)
         os.makedirs(os.path.dirname(self._sock_path), exist_ok=True)
-
-        # self.dmp_pldb = DMPPlaceDB()
-
-        # # load default dreamplace config
-        # self._load_dmp_config()
-
-        # # prepare benchmark
-        # self._prepare_benchmark()
-
-        # self.params.fromJson(
-        #     {
-        #         "plot_flag": 0,
-        #         "timing_opt_flag": 0,
-        #         "random_seed": self.args.seed,
-        #         "result_dir": self._result_dir,
-        #         "random_center_init_flag": 1,
-        #     }
-        # )
-
-        # self.dmp_pldb(self.params)
-
-        # self.dmp_plcr = NonLinearPlace(self.params, self.dmp_pldb, timer=None)
 
 
     @property
@@ -333,8 +311,17 @@ class HPOPlacer(BasicPlacer):
             self._sock.close()
             self._sock = None
         if self._worker is not None:
-            self._worker.kill()
-            self._worker = None
+            try:
+                self._worker.terminate()
+                try:
+                    self._worker.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(os.getpgid(self._worker.pid), signal.SIGKILL)
+                    self._worker.wait()
+            except Exception as e:
+                pass
+            finally:
+                self._worker = None
         if self._sock_path is not None and os.path.exists(self._sock_path):
             os.unlink(self._sock_path)
         self._worker_inited = False
@@ -357,6 +344,7 @@ class HPOPlacer(BasicPlacer):
                 stderr=subprocess.DEVNULL,
                 text=False,
                 cwd=self.args.ROOT_DIR,
+                preexec_fn=os.setsid  
             )
         except Exception:
             self._cleanup_worker()
@@ -384,7 +372,7 @@ class HPOPlacer(BasicPlacer):
             "args": {
                 "ROOT_DIR": self.args.ROOT_DIR,
                 "temp_subdir": "HPO",
-                "name": self.args.name,
+                "name": self.args.placer if not hasattr(self.args, "name") else self.args.name,
                 "benchmark": self.args.benchmark,
                 "benchmark_type": self.args.benchmark_type,
                 "unique_token": self.args.unique_token,

@@ -1,20 +1,38 @@
-from placedb import PlaceDB
-from placer import REGISTRY as PLACER_REGISTRY
-from utils.debug import *
-from argparse import Namespace
-import numpy as np 
-import datetime 
+import os 
 from config.benchmark import (
     ROOT_DIR, BENCHMARK_DIR, benchmark_dict, 
     benchmark_type_dict, benchmark_n_macro_dict
 )
+THIRDPARTY_DIR = os.path.join(ROOT_DIR, "thirdparty")
+DREAMPLACE_DIR = os.path.join(THIRDPARTY_DIR, "dreamplace")
+SOURCE_DIR = os.path.join(ROOT_DIR, "src")
+import sys
+sys.path.extend(
+    [
+        ROOT_DIR, 
+        BENCHMARK_DIR, 
+        THIRDPARTY_DIR, 
+        DREAMPLACE_DIR, 
+        SOURCE_DIR
+    ]
+)
+os.environ["PYTHONPATH"] = ":".join(sys.path)
+
+# from placedb import PlaceDB
+from src.placedb import PlaceDB
+from src.placer import REGISTRY as PLACER_REGISTRY
+from src.utils.debug import *
+from argparse import Namespace
+import numpy as np 
+import datetime 
+
 import logging
 import yaml
-import os 
 import ray
-from placer.hpo_placer import params_space
-THIRDPARTY_DIR = os.path.join(ROOT_DIR, "thirdparty")
-SOURCE_DIR = os.path.join(ROOT_DIR, "src")
+from src.placer.hpo_placer import params_space
+
+
+
 
 class Evaluator:
     def __init__(self, args: Namespace):
@@ -32,6 +50,8 @@ class Evaluator:
             file_config_dict.update(
                 yaml.load(f, Loader=yaml.FullLoader)
             )
+
+        args.placer = args.placer.lower()
         
         with open(os.path.join(config_path, "placer", f"{args.placer}.yaml"),
                   "r") as f:
@@ -73,7 +93,8 @@ class Evaluator:
         file_config_dict["unique_token"] = unique_token
         file_config_dict["result_path"] = result_path
 
-        args.__dict__.update(file_config_dict)
+        new_params = {k: v for k, v in file_config_dict.items() if k not in args.__dict__}
+        args.__dict__.update(new_params)
         
         self.args = args 
         self.placedb = PlaceDB(args=args)

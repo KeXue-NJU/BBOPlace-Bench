@@ -1,9 +1,9 @@
 import logging
 import datetime
-from utils.read_benchmark.read_aux import read_benchmark as read_aux
-from utils.read_benchmark.read_def import read_benchmark as read_def
-from utils.read_benchmark.read_def import get_inv_scaling_ratio
-from utils.debug import *
+from src.utils.read_benchmark.read_aux import read_benchmark as read_aux
+from src.utils.read_benchmark.read_def import read_benchmark as read_def
+from src.utils.read_benchmark.read_def import get_inv_scaling_ratio
+from src.utils.debug import *
 
 def get_node_to_net_dict(node_info, net_info):
     node_to_net_dict = {}

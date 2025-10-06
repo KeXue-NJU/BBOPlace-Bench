@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import logging
 import stat
-from utils.constant import get_n_power
+from src.utils.constant import get_n_power
 
 class EntryFormat:
     def __init__(self, ruleList: list):

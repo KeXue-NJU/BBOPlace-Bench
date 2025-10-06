@@ -1,9 +1,9 @@
 import logging
 import os
 import stat
-from utils.constant import INF
-from utils.debug import *
-from utils.constant import get_n_power
+from src.utils.constant import INF
+from src.utils.debug import *
+from src.utils.constant import get_n_power
 
 def read_benchmark(benchmark_path, args):
     logging.info("read database from benchmark %s" % (benchmark_path))

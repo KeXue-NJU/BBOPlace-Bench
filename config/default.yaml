@@ -1,4 +1,4 @@
-placer : MGO
+placer : mgp
 algorithm : ea
 
 benchmark : adaptec1

@@ -12,15 +12,7 @@ base_path = os.path.join(os.path.dirname(
 sys.path.append(base_path)
 
 from src.evaluator import Evaluator
-from config.benchmark import ROOT_DIR, BENCHMARK_DIR
 
-THIRDPARTY_DIR = os.path.join(ROOT_DIR, "thirdparty")
-SOURCE_DIR = os.path.join(ROOT_DIR, "src")
-sys.path.append(ROOT_DIR)
-sys.path.append(THIRDPARTY_DIR)
-sys.path.append(SOURCE_DIR)
-sys.path.append(BENCHMARK_DIR)
-os.environ["PYTHONPATH"] = ":".join(sys.path)
 
 # Set arguments
 parser = argparse.ArgumentParser() 
@@ -57,9 +49,6 @@ while not cmaes.stop():
     solutions = cmaes.ask()
     fitness_values = evaluator.evaluate(solutions)
     cmaes.tell(solutions, fitness_values)
-    
-    with open("results/demo_cmaes.txt", "a") as f:
-        f.write(f"Generation {cmaes.countiter}: {cmaes.result.fbest} \n")
     
     if cmaes.countiter % 10 == 0:
         print(f"Generation {cmaes.countiter}: Best fitness = {min(fitness_values):.6f}")

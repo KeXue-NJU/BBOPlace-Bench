@@ -84,8 +84,17 @@ class GPEvaluator:
             self._sock.close()
             self._sock = None
         if self._worker is not None:
-            self._worker.kill()
-            self._worker = None
+            try:
+                self._worker.terminate()
+                try:
+                    self._worker.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(os.getpgid(self._worker.pid), signal.SIGKILL)
+                    self._worker.wait()
+            except Exception as e:
+                pass
+            finally:
+                self._worker = None
         if self._sock_path is not None and os.path.exists(self._sock_path):
             os.unlink(self._sock_path)
         self._worker_inited = False
@@ -108,6 +117,7 @@ class GPEvaluator:
                 stderr=subprocess.DEVNULL,
                 text=False,
                 cwd=self.args.ROOT_DIR,
+                preexec_fn=os.setsid  
             )
         except Exception:
             self._cleanup_worker()
@@ -135,7 +145,7 @@ class GPEvaluator:
             "args": {
                 "ROOT_DIR": self.args.ROOT_DIR,
                 "temp_subdir": "GPEvaluator",
-                "name": self.args.name,
+                "name": self.args.placer if not hasattr(self.args, "name") else self.args.name,
                 "benchmark": self.args.benchmark,
                 "benchmark_type": self.args.benchmark_type,
                 "unique_token": self.args.unique_token,

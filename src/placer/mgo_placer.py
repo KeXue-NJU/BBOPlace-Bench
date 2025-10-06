@@ -3,8 +3,8 @@ import numpy as np
 import logging
 
 from .basic_placer import BasicPlacer
-from utils.constant import INF
-from utils.debug import *
+from src.utils.constant import INF
+from src.utils.debug import *
 
 class MaskGuidedOptimizationPlacer(BasicPlacer):
     def __init__(self, args, placedb) -> None:

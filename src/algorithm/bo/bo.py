@@ -96,7 +96,7 @@ class BO(BasicAlgo):
         self.acqf_type = self.args.acqf_type 
         self.kernel_type = self.args.kernel_type
         
-        if args.placer == "MGO":
+        if args.placer == "mgo":
             self.problem = MaskGuidedOptimizationPlacementProblem(
                 n_grid_x=args.n_grid_x,
                 n_grid_y=args.n_grid_y,
