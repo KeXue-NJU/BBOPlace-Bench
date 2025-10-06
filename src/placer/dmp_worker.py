@@ -4,13 +4,17 @@ import os
 import torch as th
 import socket
 import numpy as np
+import signal
+import time
+import threading
+import psutil
 import thirdparty.dreamplace.ops.place_io.place_io as place_io
 
 from thirdparty.dreamplace.Params import Params as DMPParams
 from thirdparty.dreamplace.PlaceDB import PlaceDB as DMPPlaceDB
 from thirdparty.dreamplace.NonLinearPlace import NonLinearPlace
 
-from utils.debug import *
+from src.utils.debug import *
 
 
 def _setup_inputs(params: DMPParams, args: dict):
@@ -75,6 +79,11 @@ class DMPWorker:
         self.placer = None
 
         self.node_names = None
+        self.server = None
+        self.sock_path = None
+        
+        self._parent_pid = os.getppid()  
+        self._monitor_thread = None
     
     def _init_data(self, args: dict, canvas_width: float, canvas_height: float):
         self.args = args
@@ -92,6 +101,35 @@ class DMPWorker:
         self.node_names[mask] = [n[0] for n in modified]
 
         self.init = True
+
+    def _start_parent_monitor(self):
+        def cleanup_worker():
+            if self.server:
+                self.server.close()
+            if self.sock_path is not None and os.path.exists(self.sock_path):
+                os.unlink(self.sock_path)
+            os._exit(0)
+        
+        def monitor_parent():
+            while True:
+                try:
+                    if not psutil.pid_exists(self._parent_pid):
+                        cleanup_worker()
+                    
+                    try:
+                        parent = psutil.Process(self._parent_pid)
+                        if parent.create_time() != psutil.Process(os.getppid()).create_time():
+                            cleanup_worker()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        cleanup_worker()
+                        
+                except Exception as e:
+                    cleanup_worker()
+                    
+                time.sleep(1)  
+        
+        self._monitor_thread = threading.Thread(target=monitor_parent, daemon=True)
+        self._monitor_thread.start()
 
     def handle_place(self, msg: dict) -> dict:
         params_update = msg.get("params_update")
@@ -155,12 +193,17 @@ class DMPWorker:
     def serve_forever(self, sock_path: str):
         if os.path.exists(sock_path):
             os.unlink(sock_path)
-        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        server.bind(sock_path)
-        server.listen(1)
+        self.sock_path = sock_path
+        self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.server.bind(sock_path)
+        self.server.listen(1)
 
+        self._start_parent_monitor()
         while True:
-            conn, _ = server.accept()
+            try:
+                conn, _ = self.server.accept()
+            except Exception:
+                continue
             with conn:
                 buffer = b""
                 while True:

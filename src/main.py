@@ -74,6 +74,9 @@ def process_args():
     for key, value in cmd_config_dict.items():
         config_dict[key] = value
 
+    config_dict["placer"] = config_dict["placer"]
+    config_dict["algorithm"] = config_dict["algorithm"]
+
     # placer config
     with open(f"../config/placer/{config_dict['placer']}.yaml", 'r') as f:
         try:
@@ -94,15 +97,6 @@ def process_args():
     args = SimpleNamespace(**config_dict)
     args.benchmark_path, args.benchmark_type, args.benchmark_base = process_benchmark_path(config_dict["benchmark"])
 
-    # if isinstance(args.gpu, int):
-    #     args.num_gpus = 1
-    #     args.gpu = str(args.gpu)
-    # elif isinstance(args.gpu, tuple):
-    #     args.num_gpus = len(args.gpu)
-    #     gpu = [str(gpu) for gpu in args.gpu]
-    #     args.gpu = ",".join(gpu)
-    # else:
-    #     raise TypeError(f"args.gpu must be int or tuple, but {args.gpu} is given")
 
     setattr(args, "ROOT_DIR", ROOT_DIR)
     setattr(args, "THIRDPARTY_DIR", THIRDPARTY_DIR)
@@ -134,8 +128,8 @@ def single_run(args):
 
     logger = Logger(args=args)
     placedb = PlaceDB(args=args)
-    placer = PLACER_REGISTRY[args.placer.lower()](args=args, placedb=placedb)
-    runner = ALGO_REGISTRY[args.algorithm.lower()](args=args, placer=placer, logger=logger)
+    placer = PLACER_REGISTRY[args.placer](args=args, placedb=placedb)
+    runner = ALGO_REGISTRY[args.algorithm](args=args, placer=placer, logger=logger)
     runner.run()
     logging.info("Exit single run")
 

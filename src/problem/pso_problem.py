@@ -40,7 +40,7 @@ class PlacementProblem(Problem):
         out["overlap_rate"] = np.array(overlap_rate)
         out["macro_pos"] = macro_pos_all
     
-class GridGuidePlacementProblem(PlacementProblem):
+class MaskGuidedOptimizationPlacementProblem(PlacementProblem):
     def __init__(self, n_grid_x, n_grid_y, placer):
         self.node_cnt = placer.placedb.node_cnt
         self.n_grid_x = n_grid_x

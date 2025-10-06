@@ -26,9 +26,9 @@ class GuidGuideSBXCrossover(SBX):
             prob=args.sbx_prob, eta=args.sbx_eta
         )
 
-class GridGuideUniformCrossover(UX):
+class MaskGuidedOptimizationUniformCrossover(UX):
     def __init__(self, args):
-        super(GridGuideUniformCrossover, self).__init__()
+        super(MaskGuidedOptimizationUniformCrossover, self).__init__()
         self.args = args
 
 ###################################################################

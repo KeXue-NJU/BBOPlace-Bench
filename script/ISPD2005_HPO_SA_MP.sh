@@ -1,4 +1,4 @@
-problem_formulation=dmp
+problem_formulation=hpo
 algo=sa
 
 for benchmark in adaptec1 adaptec2 adaptec3 adaptec4 bigblue1 bigblue3

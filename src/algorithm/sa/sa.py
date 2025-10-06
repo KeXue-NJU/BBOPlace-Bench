@@ -1,9 +1,9 @@
-from problem.pymoo_problem import GridGuidePlacementProblem, SequencePairPlacementProblem, HyperparameterPlacementProblem
+from problem.pymoo_problem import MaskGuidedOptimizationPlacementProblem, SequencePairPlacementProblem, HyperparameterPlacementProblem
 import numpy as np 
 import pickle
 import time
 import os
-from placer.dmp_placer import params_space
+from placer.hpo_placer import params_space
 from utils.debug import * 
 from utils.constant import INF
 from ..basic_algo import BasicAlgo
@@ -16,8 +16,8 @@ class SA(BasicAlgo):
         super(SA, self).__init__(args=args, placer=placer, logger=logger)
         self.node_cnt = placer.placedb.node_cnt
 
-        if args.placer == "grid_guide":
-            self.problem = GridGuidePlacementProblem(
+        if args.placer == "mgo":
+            self.problem = MaskGuidedOptimizationPlacementProblem(
                 n_grid_x=args.n_grid_x,
                 n_grid_y=args.n_grid_y,
                 placer=placer
@@ -26,7 +26,7 @@ class SA(BasicAlgo):
             self.problem = SequencePairPlacementProblem(
                 placer=placer
             )
-        elif args.placer == "dmp":
+        elif args.placer == "hpo":
             self.problem = HyperparameterPlacementProblem(
                 params_space=params_space,
                 placer=placer,

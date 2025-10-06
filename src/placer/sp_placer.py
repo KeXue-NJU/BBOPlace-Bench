@@ -3,7 +3,7 @@ import igraph as ig
 import copy
 
 from .basic_placer import BasicPlacer
-from utils.debug import *
+from src.utils.debug import *
 
 class SPPlacer(BasicPlacer):
     def __init__(self, args, placedb) -> None:

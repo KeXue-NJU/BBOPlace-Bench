@@ -64,7 +64,7 @@ import numpy as np
 
 # Initialize evaluator
 args = SimpleNamespace(
-    placer="grid_guide",  # Options: grid_guide, sp, dmp
+    placer="mgo",  # Options: mgo, sp, hpo
     benchmark="adaptec1", 
     eval_gp_hpwl=False
 )
@@ -99,9 +99,9 @@ benchmarks = [
 ```
 
 ### Problem Formulations
-- **GG (Grid Guide)**: Continuous optimization
+- **MGO (Mask-Guided Optimization)**: Continuous optimization
 - **SP (Sequence Pair)**: Permutation-based optimization  
-- **HPO (DMP)**: Continuous optimization
+- **HPO (Hyperparameter Optimization)**: Mixed optimization
 
 ## Configuration
 
@@ -123,7 +123,7 @@ wandb_offline: True  # Set True for offline mode
 wandb_api: "<Your API KEY>"
 ```
 
-**Note**: Set `n_cpu_max=1` when using `dmp` placer or evaluating global placement HPWL.
+**Note**: Set `n_cpu_max=1` when using `hpo` placer or evaluating global placement HPWL.
 
 ## Running Experiments
 

@@ -1,4 +1,4 @@
-placer : grid_guide
+placer : mgp
 algorithm : ea
 
 benchmark : adaptec1

@@ -28,10 +28,10 @@ from utils.debug import *
 from utils.constant import INF
 from utils.data_utils import FeatureCache 
 from utils.random_parser import set_state
-from problem.acqf_problem import GridGuideAcquisitionFuncProblem, SequencePairAcquisitionFuncProblem
+from problem.acqf_problem import MaskGuidedOptimizationAcquisitionFuncProblem, SequencePairAcquisitionFuncProblem
 from operators import REGISTRY as OPS_REGISTRY
 from problem.pymoo_problem import (
-    GridGuidePlacementProblem, 
+    MaskGuidedOptimizationPlacementProblem, 
     SequencePairPlacementProblem,
     HyperparameterPlacementProblem
 )
@@ -43,7 +43,7 @@ from pymoo.operators.crossover.sbx import SBX
 from pymoo.core.repair import Repair
 from pymoo.algorithms.soo.nonconvex.ga import GA
 from pymoo.optimize import minimize
-from placer.dmp_placer import params_space
+from placer.hpo_placer import params_space
 from ..basic_algo import BasicAlgo
 
 
@@ -96,8 +96,8 @@ class BO(BasicAlgo):
         self.acqf_type = self.args.acqf_type 
         self.kernel_type = self.args.kernel_type
         
-        if args.placer == "grid_guide":
-            self.problem = GridGuidePlacementProblem(
+        if args.placer == "mgo":
+            self.problem = MaskGuidedOptimizationPlacementProblem(
                 n_grid_x=args.n_grid_x,
                 n_grid_y=args.n_grid_y,
                 placer=placer
@@ -121,7 +121,7 @@ class BO(BasicAlgo):
             self.kernel_type = "comb_order"
             self.acqf_type = 'LCB_lower_bound'
             
-        elif args.placer == "dmp":
+        elif args.placer == "hpo":
             self.problem = HyperparameterPlacementProblem(
                 params_space=params_space,
                 placer=placer
@@ -209,7 +209,7 @@ class BO(BasicAlgo):
         is_torch_tensor = isinstance(x, torch.Tensor)
         
         if is_torch_tensor:
-            if self.placer_type != "dmp":
+            if self.placer_type != "hpo":
                 x = np.round(x.detach().cpu().numpy()).astype(np.int32)
             else:
                 x = x.detach().cpu().numpy()
@@ -240,7 +240,7 @@ class BO(BasicAlgo):
             
             proposed_X = res.pop.get("X")
             
-        elif self.placer_type == "dmp" or self.placer_type == "grid_guide":
+        elif self.placer_type == "hpo" or self.placer_type == "mgo":
             normalized_bounds = torch.stack([torch.zeros(self.dim), torch.ones(self.dim)]).to(**tkwargs)
             with gpytorch.settings.cholesky_jitter(1e-4):
                 proposed_X, _ = optimize_acqf(
@@ -300,7 +300,7 @@ class BO(BasicAlgo):
         train_Y_tensor = (train_Y_tensor - train_Y_tensor.mean()) / (train_Y_tensor.std() + 1e-6)
 
         train_X_tensor = self.train_X
-        if self.placer_type == "dmp" or self.placer_type == "grid_guide":
+        if self.placer_type == "hpo" or self.placer_type == "mgo":
             train_X_tensor = normalize(self.train_X, self.bounds)
 
         self.model = self._init_model(train_X_tensor, train_Y_tensor,
@@ -323,8 +323,8 @@ class BO(BasicAlgo):
             self.train_X = torch.cat((self.train_X, proposed_X))
             self.train_Y = torch.cat((self.train_Y, proposed_Y.reshape(-1, 1)))
 
-            # De-duplicate training data for grid_guide placer
-            if self.placer_type == "grid_guide":
+            # De-duplicate training data for MGO placer
+            if self.placer_type == "mgo":
                 # Convert to integer coordinates to identify duplicates
                 # This is necessary because continuous outputs from acqf optimization
                 # can round to the same integer grid positions, causing duplicates.
@@ -343,7 +343,7 @@ class BO(BasicAlgo):
             train_Y_tensor = (train_Y_tensor - train_Y_tensor.mean()) / (train_Y_tensor.std() + 1e-6)
             
             train_X_tensor = self.train_X
-            if self.placer_type == "dmp" or self.placer_type == "grid_guide":
+            if self.placer_type == "hpo" or self.placer_type == "mgo":
                 train_X_tensor = normalize(self.train_X, self.bounds)
             
             self.model = self._init_model(train_X_tensor, train_Y_tensor, self.model.state_dict())

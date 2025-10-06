@@ -1,12 +1,10 @@
-problem_formulation=grid_guide
+problem_formulation=mgo
 algo=sa
-benchmark_prefix=superblue
 
-for i in 1 3 4 5 7 10 16 18
+for benchmark in adaptec1 adaptec2 adaptec3 adaptec4 bigblue1 bigblue3
 do
-benchmark=${benchmark_prefix}${i}
 python ../src/main.py \
-    --name=ICCAD2015_GG_SA_MP \
+    --name=ISPD2005_MGO_SA_MP \
     --benchmark=${benchmark} \
     --placer=${problem_formulation} \
     --algorithm=${algo} \
@@ -16,7 +14,7 @@ python ../src/main.py \
     --n_sampling_repeat=250 \
     --max_evals=10000 \
     --max_eval_time=72 \
-    --n_macro=512 \
+    --n_macro=1000000 \
     --sampling=random \
     --mutation=shuffle
 done

@@ -3,12 +3,12 @@ import numpy as np
 import logging
 
 from .basic_placer import BasicPlacer
-from utils.constant import INF
-from utils.debug import *
+from src.utils.constant import INF
+from src.utils.debug import *
 
-class GridGuidePlacer(BasicPlacer):
+class MaskGuidedOptimizationPlacer(BasicPlacer):
     def __init__(self, args, placedb) -> None:
-        super(GridGuidePlacer, self).__init__(args=args, placedb=placedb)
+        super(MaskGuidedOptimizationPlacer, self).__init__(args=args, placedb=placedb)
 
         self.n_grid_x = args.n_grid_x
         self.n_grid_y = args.n_grid_y

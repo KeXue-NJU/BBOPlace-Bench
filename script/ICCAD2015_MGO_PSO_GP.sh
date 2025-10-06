@@ -1,12 +1,12 @@
-problem_formulation=grid_guide
-algo=ea
+problem_formulation=mgo
+algo=pso
 benchmark_prefix=superblue
 
 for i in 1 3 4 5 7 10 16 18
 do
 benchmark=${benchmark_prefix}${i}
 python ../src/main.py \
-    --name=ICCAD2015_GG_EA_GP \
+    --name=ICCAD2015_MGO_PSO_GP \
     --benchmark=${benchmark} \
     --placer=${problem_formulation} \
     --algorithm=${algo} \
@@ -18,7 +18,5 @@ python ../src/main.py \
     --max_evals=1000 \
     --max_eval_time=72 \
     --n_macro=512 \
-    --sampling=random \
-    --mutation=shuffle \
-    --crossover=uniform
+    --sampling=random 
 done

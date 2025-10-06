@@ -1,5 +1,5 @@
 from .basic_placer import BasicPlacer
-from utils.constant import EPS
+from src.utils.constant import EPS
 from thirdparty.dreamplace.Params import Params as DMPParams
 from thirdparty.dreamplace.PlaceDB import PlaceDB as DMPPlaceDB
 from thirdparty.dreamplace.NonLinearPlace import NonLinearPlace
@@ -17,8 +17,8 @@ import subprocess
 import multiprocessing as mp
 import select
 
-from utils.signal_handler import abort_signal_handler, timeout_handler, AbortSignalException
-from utils.debug import *
+from src.utils.signal_handler import abort_signal_handler, timeout_handler, AbortSignalException
+from src.utils.debug import *
 
 Numeric = Union[int, float]
 
@@ -56,7 +56,7 @@ params_space = {
 
 }
 
-class DMPPlacer(BasicPlacer):
+class HPOPlacer(BasicPlacer):
     DMP_CONFIG_PATH = "config/algorithm/dmp_config"
     DMP_TEMP_BENCHMARK_PATH = "benchmarks/.tmp/HPO"
     DMP_RESULT_DIR = os.path.join(
@@ -86,7 +86,7 @@ class DMPPlacer(BasicPlacer):
     ]
 
     def __init__(self, args, placedb):
-        super(DMPPlacer, self).__init__(args, placedb)
+        super(HPOPlacer, self).__init__(args, placedb)
         self.args = args
         self.placedb = placedb
 
@@ -102,30 +102,8 @@ class DMPPlacer(BasicPlacer):
 
         self.timeout_seconds = args.timeout_seconds
 
-        self._sock_path = os.path.join(self.args.ROOT_DIR, DMPPlacer.SOCK_PATH % self.args.__dict__)
+        self._sock_path = os.path.join(self.args.ROOT_DIR, HPOPlacer.SOCK_PATH % self.args.__dict__)
         os.makedirs(os.path.dirname(self._sock_path), exist_ok=True)
-
-        # self.dmp_pldb = DMPPlaceDB()
-
-        # # load default dreamplace config
-        # self._load_dmp_config()
-
-        # # prepare benchmark
-        # self._prepare_benchmark()
-
-        # self.params.fromJson(
-        #     {
-        #         "plot_flag": 0,
-        #         "timing_opt_flag": 0,
-        #         "random_seed": self.args.seed,
-        #         "result_dir": self._result_dir,
-        #         "random_center_init_flag": 1,
-        #     }
-        # )
-
-        # self.dmp_pldb(self.params)
-
-        # self.dmp_plcr = NonLinearPlace(self.params, self.dmp_pldb, timer=None)
 
 
     @property
@@ -137,7 +115,7 @@ class DMPPlacer(BasicPlacer):
         ROOT_DIR = self.args.ROOT_DIR
         return os.path.join(
             ROOT_DIR,
-            DMPPlacer.DMP_RESULT_DIR % self.args.__dict__
+            HPOPlacer.DMP_RESULT_DIR % self.args.__dict__
         )
 
     @property
@@ -153,7 +131,7 @@ class DMPPlacer(BasicPlacer):
         ROOT_DIR = self.args.ROOT_DIR
         return os.path.join(
             ROOT_DIR,
-            DMPPlacer.DMP_TEMP_BENCHMARK_PATH,
+            HPOPlacer.DMP_TEMP_BENCHMARK_PATH,
             "%(benchmark)s_%(unique_token)s" % self.args.__dict__
         )
 
@@ -175,7 +153,7 @@ class DMPPlacer(BasicPlacer):
 
     def _prepare_benchmark_aux(self):
         os.makedirs(self._temp_benchmark_path, exist_ok=True)
-        self._link_files(DMPPlacer.AUX_FILES)
+        self._link_files(HPOPlacer.AUX_FILES)
         
         # prepare .pl
         pl_file_path = os.path.join(
@@ -199,7 +177,7 @@ class DMPPlacer(BasicPlacer):
 
     def _prepare_benchmark_def(self):
         os.makedirs(self._temp_benchmark_path, exist_ok=True)
-        self._link_files(DMPPlacer.DEF_FILES)
+        self._link_files(HPOPlacer.DEF_FILES)
         
         # prepare .def
         def_file_path = os.path.join(
@@ -242,7 +220,7 @@ class DMPPlacer(BasicPlacer):
         json_file = f"{self.args.benchmark}.json"
         json_path = os.path.join(
             ROOT_DIR,
-            DMPPlacer.DMP_CONFIG_PATH,
+            HPOPlacer.DMP_CONFIG_PATH,
             json_file
         )
         self.params.load(json_path)
@@ -333,8 +311,17 @@ class DMPPlacer(BasicPlacer):
             self._sock.close()
             self._sock = None
         if self._worker is not None:
-            self._worker.kill()
-            self._worker = None
+            try:
+                self._worker.terminate()
+                try:
+                    self._worker.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(os.getpgid(self._worker.pid), signal.SIGKILL)
+                    self._worker.wait()
+            except Exception as e:
+                pass
+            finally:
+                self._worker = None
         if self._sock_path is not None and os.path.exists(self._sock_path):
             os.unlink(self._sock_path)
         self._worker_inited = False
@@ -357,6 +344,7 @@ class DMPPlacer(BasicPlacer):
                 stderr=subprocess.DEVNULL,
                 text=False,
                 cwd=self.args.ROOT_DIR,
+                preexec_fn=os.setsid  
             )
         except Exception:
             self._cleanup_worker()
@@ -384,7 +372,7 @@ class DMPPlacer(BasicPlacer):
             "args": {
                 "ROOT_DIR": self.args.ROOT_DIR,
                 "temp_subdir": "HPO",
-                "name": self.args.name,
+                "name": self.args.placer if not hasattr(self.args, "name") else self.args.name,
                 "benchmark": self.args.benchmark,
                 "benchmark_type": self.args.benchmark_type,
                 "unique_token": self.args.unique_token,

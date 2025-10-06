@@ -22,7 +22,7 @@ class AcquisitionFuncProblem(Problem):
                 .detach().cpu().numpy() * (-1)
         torch.cuda.empty_cache()
 
-class GridGuideAcquisitionFuncProblem(AcquisitionFuncProblem):
+class MaskGuidedOptimizationAcquisitionFuncProblem(AcquisitionFuncProblem):
     def __init__(self, n_grid_x, n_grid_y, node_cnt, acqf):
         self.n_grid_x = n_grid_x
         self.n_grid_y = n_grid_y

@@ -9,7 +9,7 @@ import sampling
 REGISTRY = {}
 
 REGISTRY["sampling"] = {
-    "grid_guide" : {
+    "mgo" : {
         "single_random": sampling.GrideGuideSingleRandomSampling,
         'random' : sampling.GrideGuideRandomSampling,
         "spiral" : sampling.GrideGuideSpiralSampling,
@@ -17,40 +17,40 @@ REGISTRY["sampling"] = {
     "sp" : {
         "random" : sampling.SPRandomSampling,
     },
-    "dmp": {
+    "hpo": {
         "random" : sampling.HyperparameterSampling,
     }
 }
 
 REGISTRY["mutation"] = {
-    "grid_guide" : {
+    "mgo" : {
         "dummy" : mutation.DummyMutation,
-        "swap" : mutation.GridGuideSwapMutation,
-        "shift" : mutation.GridGuideShiftMutation,
-        "random_resetting" : mutation.GridGuideRandomResettingMutation,
-        "shuffle" : mutation.GridGuideShuffleMutation,
-        "pm": mutation.GridGuidePMMutation,
+        "swap" : mutation.MaskGuidedOptimizationSwapMutation,
+        "shift" : mutation.MaskGuidedOptimizationShiftMutation,
+        "random_resetting" : mutation.MaskGuidedOptimizationRandomResettingMutation,
+        "shuffle" : mutation.MaskGuidedOptimizationShuffleMutation,
+        "pm": mutation.MaskGuidedOptimizationPMMutation,
     },
     "sp" : {
         "dummy" : mutation.DummyMutation,
         "inversion" : mutation.SPInversionMutation,
     },
-    "dmp": {
+    "hpo": {
         "random_resetting" : mutation.HyperparameterRandomResettingMutation,
     }
 }
 
 REGISTRY["crossover"] = {
-    "grid_guide" : {
+    "mgo" : {
         "dummy" : crossover.DummyCrossover,
-        "uniform" : crossover.GridGuideUniformCrossover,
+        "uniform" : crossover.MaskGuidedOptimizationUniformCrossover,
         "sbx": crossover.GuidGuideSBXCrossover
     },
     "sp" : {
         "dummy" : crossover.DummyCrossover,
         "order" : crossover.SPOrderCrossover,
     },
-    "dmp": {
+    "hpo": {
         "uniform" : crossover.HyperparameterUniformCrossover,
     }
 }
