@@ -10,7 +10,11 @@ This repository contains the Python code for BBOPlace-Bench, a benchmarking cont
 > If you find it difficult to install DREAMPlace, we have a basic version available that works out of the box without DREAMPlace. Check it out at: [BBOPlace-miniBench](https://github.com/lamda-bbo/BBOPlace-miniBench)
 
 ### Compile DREAMPlace
-Please first install docker and [docker cuda toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). Then, please download the docker image from [Baidu Netdisk](https://pan.baidu.com/s/1_0-ZDNUAKdqwyIQWXWdoUQ?pwd=3bef) or [DREAMPlace](<https://github.com/limbo018/DREAMPlace>), and compile `thirdparty/DREAMPlace_source` in the docker container following the below commands:
+Please first install docker and [docker cuda toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). Then, please download the docker image from [Baidu Netdisk](https://pan.baidu.com/s/1Xq5suhD7zjiFQ1Kz-00nCQ?pwd=ihdr) or pull it from dockerhub:
+```bash
+docker pull duketomlist/bboplace-bench:2.1.0
+```
+Please compile `thirdparty/DREAMPlace_source` in the docker container following the below commands:
 ```bash
 cd thirdparty/DREAMPlace_source
 mkdir build
@@ -99,8 +103,8 @@ benchmarks = [
 ```
 
 ### Problem Formulations
-- **MGO (Mask-Guided Optimization)**: Continuous optimization
 - **SP (Sequence Pair)**: Permutation-based optimization  
+- **MGO (Mask-Guided Optimization)**: Continuous optimization
 - **HPO (Hyperparameter Optimization)**: Mixed optimization
 
 ## Configuration
