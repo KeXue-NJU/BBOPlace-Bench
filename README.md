@@ -5,9 +5,6 @@ Official implementation of paper "BBOPlace-Bench: Benchmarking Black-Box Optimiz
 This repository contains the Python code for BBOPlace-Bench, a benchmarking containing BBO algorithms for chip placement tasks. 
 
 ## Installation
-> **Important Reminder:**
->
-> If you find it difficult to install DREAMPlace, we have a basic version available that works out of the box without DREAMPlace. Check it out at: [BBOPlace-miniBench](https://github.com/lamda-bbo/BBOPlace-miniBench)
 
 ### Compile DREAMPlace
 Please first install docker and [docker cuda toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). Then, please download the docker image from [Baidu Netdisk](https://pan.baidu.com/s/1Xq5suhD7zjiFQ1Kz-00nCQ?pwd=ihdr) or pull it from dockerhub:
